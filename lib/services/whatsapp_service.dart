@@ -23,6 +23,12 @@ class WhatsAppService {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  static Future<bool> callPhone(String rawPhone) async {
+    final digits = rawPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (digits.isEmpty) return false;
+    return launchUrl(Uri.parse('tel:$digits'));
+  }
+
   static Future<void> copyMessage(String message) async {
     await Clipboard.setData(ClipboardData(text: message));
   }

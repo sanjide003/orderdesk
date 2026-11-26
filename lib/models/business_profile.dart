@@ -9,8 +9,7 @@ class BusinessProfile {
   final String courierName;
   final String trackingUrl;
   final String paymentBankLabel;
-  final String qrImageBase64;
-  final String qrImageUrl;
+  final String appLanguage; // 'en' or 'ml'
   final int primaryColorHex;
 
   const BusinessProfile({
@@ -24,14 +23,13 @@ class BusinessProfile {
     required this.courierName,
     required this.trackingUrl,
     required this.paymentBankLabel,
-    this.qrImageBase64 = '',
-    this.qrImageUrl = '',
+    this.appLanguage = 'en',
     this.primaryColorHex = 0xFF0F766E,
   });
 
   factory BusinessProfile.fromMap(Map<String, dynamic> map) {
     return BusinessProfile(
-      brandName: (map['brandName'] ?? 'My Business') as String,
+      brandName: (map['brandName'] ?? 'OrderDesk') as String,
       tagline: (map['tagline'] ?? '') as String,
       phone: (map['phone'] ?? '') as String,
       website: (map['website'] ?? '') as String,
@@ -41,8 +39,7 @@ class BusinessProfile {
       courierName: (map['courierName'] ?? 'DTDC Courier') as String,
       trackingUrl: (map['trackingUrl'] ?? '') as String,
       paymentBankLabel: (map['paymentBankLabel'] ?? 'UPI / Bank QR Code') as String,
-      qrImageBase64: (map['qrImageBase64'] ?? '') as String,
-      qrImageUrl: (map['qrImageUrl'] ?? '') as String,
+      appLanguage: (map['appLanguage'] ?? 'en') as String,
       primaryColorHex: (map['primaryColorHex'] ?? 0xFF0F766E) as int,
     );
   }
@@ -59,8 +56,7 @@ class BusinessProfile {
       'courierName': courierName,
       'trackingUrl': trackingUrl,
       'paymentBankLabel': paymentBankLabel,
-      'qrImageBase64': qrImageBase64,
-      'qrImageUrl': qrImageUrl,
+      'appLanguage': appLanguage,
       'primaryColorHex': primaryColorHex,
     };
   }
@@ -76,8 +72,7 @@ class BusinessProfile {
     String? courierName,
     String? trackingUrl,
     String? paymentBankLabel,
-    String? qrImageBase64,
-    String? qrImageUrl,
+    String? appLanguage,
     int? primaryColorHex,
   }) {
     return BusinessProfile(
@@ -91,8 +86,7 @@ class BusinessProfile {
       courierName: courierName ?? this.courierName,
       trackingUrl: trackingUrl ?? this.trackingUrl,
       paymentBankLabel: paymentBankLabel ?? this.paymentBankLabel,
-      qrImageBase64: qrImageBase64 ?? this.qrImageBase64,
-      qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+      appLanguage: appLanguage ?? this.appLanguage,
       primaryColorHex: primaryColorHex ?? this.primaryColorHex,
     );
   }

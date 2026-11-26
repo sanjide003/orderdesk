@@ -11,7 +11,7 @@ class TemplateEngine {
 
   static String buildProductListText(List<ProductModel> products) {
     final activeProducts = products.where((p) => p.active).toList();
-    if (activeProducts.isEmpty) return 'ലഭ്യമായ ഉൽപ്പന്നങ്ങൾ ഉടൻ അപ്ഡേറ്റ് ചെയ്യുന്നതാണ്.';
+    if (activeProducts.isEmpty) return 'Products will be updated soon.';
 
     final buffer = StringBuffer();
     int idx = 1;
@@ -23,13 +23,13 @@ class TemplateEngine {
             : '• Delivery Charge: ${formatMoney(pack.deliveryCharge)}';
 
         buffer.writeln('*$idx. ${product.name} (${pack.label})*');
-        buffer.writeln('• വില: ${formatMoney(pack.price)} only$taxText');
+        buffer.writeln('• Price: ${formatMoney(pack.price)} only$taxText');
         buffer.writeln(deliveryText);
         buffer.writeln();
         idx++;
       }
       if (product.highlights.isNotEmpty) {
-        buffer.writeln('✨ *പ്രത്യേകതകൾ:*');
+        buffer.writeln('✨ *Highlights:*');
         for (final h in product.highlights) {
           buffer.writeln(h);
         }

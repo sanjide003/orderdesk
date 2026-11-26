@@ -7,7 +7,7 @@ class ProductPack {
   const ProductPack({
     required this.label,
     required this.price,
-    this.taxNote = '5% GST ഉൾപ്പെടെ',
+    this.taxNote = '',
     this.deliveryCharge = 0,
   });
 

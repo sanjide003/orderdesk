@@ -89,6 +89,12 @@ class OrderModel {
     return DateTime.now().difference(dispatchedAt!).inDays >= 4;
   }
 
+  bool get isPaidOrBeyond =>
+      status == 'Paid' ||
+      status == 'Dispatched' ||
+      status == 'Delivered' ||
+      status == 'Review Sent';
+
   String get itemsSummary =>
       items.map((e) => '${e.productName} (${e.packLabel}) x${e.quantity}').join(', ');
 

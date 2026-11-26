@@ -24,6 +24,13 @@ class FirestoreService {
         .set(profile.toMap(), SetOptions(merge: true));
   }
 
+  Future<void> updateAppLanguage(String lang) {
+    return _db
+        .collection('settings')
+        .doc('business_profile')
+        .set({'appLanguage': lang}, SetOptions(merge: true));
+  }
+
   Stream<DeliveryRules> watchDeliveryRules() {
     return _db.collection('settings').doc('delivery_rules').snapshots().map(
           (doc) => doc.exists && doc.data() != null
@@ -55,6 +62,10 @@ class FirestoreService {
     return doc.set(product.toMap(), SetOptions(merge: true));
   }
 
+  Future<void> toggleProductActive(String id, bool active) {
+    return _db.collection('products').doc(id).update({'active': active});
+  }
+
   Future<void> deleteProduct(String id) {
     return _db.collection('products').doc(id).delete();
   }
@@ -73,10 +84,14 @@ class FirestoreService {
   }
 
   Future<void> saveTemplate(TemplateModel template) {
-    return _db
-        .collection('templates')
-        .doc(template.id)
-        .set(template.toMap(), SetOptions(merge: true));
+    final doc = template.id.isEmpty
+        ? _db.collection('templates').doc()
+        : _db.collection('templates').doc(template.id);
+    return doc.set(template.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> deleteTemplate(String id) {
+    return _db.collection('templates').doc(id).delete();
   }
 
   Stream<List<OrderModel>> watchOrders() {
@@ -109,11 +124,16 @@ class FirestoreService {
     return _db.collection('orders').doc(orderId).update(data);
   }
 
+  Future<void> deleteOrder(String orderId) {
+    return _db.collection('orders').doc(orderId).delete();
+  }
+
   Future<void> seedLakfaDefaults() async {
     final batch = _db.batch();
     batch.set(
       _db.collection('settings').doc('business_profile'),
       LakfaSeedData.profile.toMap(),
+      SetOptions(merge: true),
     );
     batch.set(
       _db.collection('settings').doc('delivery_rules'),

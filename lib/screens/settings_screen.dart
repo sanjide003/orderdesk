@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/business_profile.dart';
 import '../models/delivery_rules.dart';
 import '../models/template_model.dart';
+import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,6 +11,7 @@ class SettingsScreen extends StatefulWidget {
   final BusinessProfile profile;
   final DeliveryRules rules;
   final List<TemplateModel> templates;
+  final AppStrings s;
 
   const SettingsScreen({
     super.key,
@@ -17,6 +19,7 @@ class SettingsScreen extends StatefulWidget {
     required this.profile,
     required this.rules,
     required this.templates,
+    required this.s,
   });
 
   @override
@@ -29,31 +32,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _phoneCtrl;
   late TextEditingController _websiteCtrl;
   late TextEditingController _instaCtrl;
+  late TextEditingController _instaUrlCtrl;
   late TextEditingController _reviewCtrl;
   late TextEditingController _courierCtrl;
   late TextEditingController _trackingUrlCtrl;
+  late TextEditingController _bankCtrl;
   late TextEditingController _flatCtrl;
   late TextEditingController _thresholdCtrl;
   late TextEditingController _belowCtrl;
   late DeliveryMode _mode;
+  late int _colorHex;
+
+  static const List<int> _presetColors = [
+    0xFF0F766E, // Ocean Teal
+    0xFF1D4ED8, // Royal Blue
+    0xFF15803D, // Forest Green
+    0xFFB45309, // Warm Amber
+    0xFF7C3AED, // Deep Violet
+    0xFFBE123C, // Crimson
+  ];
 
   @override
   void initState() {
     super.initState();
+    _syncFromWidget();
+  }
+
+  void _syncFromWidget() {
     _brandCtrl = TextEditingController(text: widget.profile.brandName);
     _taglineCtrl = TextEditingController(text: widget.profile.tagline);
     _phoneCtrl = TextEditingController(text: widget.profile.phone);
     _websiteCtrl = TextEditingController(text: widget.profile.website);
     _instaCtrl = TextEditingController(text: widget.profile.instagramHandle);
+    _instaUrlCtrl = TextEditingController(text: widget.profile.instagramUrl);
     _reviewCtrl = TextEditingController(text: widget.profile.reviewUrl);
     _courierCtrl = TextEditingController(text: widget.profile.courierName);
     _trackingUrlCtrl = TextEditingController(text: widget.profile.trackingUrl);
-    _flatCtrl = TextEditingController(text: '${widget.rules.flatCharge.toInt()}');
+    _bankCtrl = TextEditingController(text: widget.profile.paymentBankLabel);
+    _flatCtrl =
+        TextEditingController(text: '${widget.rules.flatCharge.toInt()}');
     _thresholdCtrl = TextEditingController(
         text: '${widget.rules.freeThresholdAmount.toInt()}');
     _belowCtrl = TextEditingController(
         text: '${widget.rules.belowThresholdCharge.toInt()}');
     _mode = widget.rules.mode;
+    _colorHex = widget.profile.primaryColorHex;
   }
 
   Future<void> _saveSettings() async {
@@ -64,9 +87,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         phone: _phoneCtrl.text.trim(),
         website: _websiteCtrl.text.trim(),
         instagramHandle: _instaCtrl.text.trim(),
+        instagramUrl: _instaUrlCtrl.text.trim(),
         reviewUrl: _reviewCtrl.text.trim(),
         courierName: _courierCtrl.text.trim(),
         trackingUrl: _trackingUrlCtrl.text.trim(),
+        paymentBankLabel: _bankCtrl.text.trim(),
+        primaryColorHex: _colorHex,
       ),
     );
     await widget.service.saveDeliveryRules(
@@ -79,239 +105,346 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings Saved ✅')),
+        SnackBar(content: Text(widget.s.t('settings_saved'))),
       );
     }
   }
 
-  Future<void> _editTemplate(TemplateModel tpl) async {
-    final ctrl = TextEditingController(text: tpl.body);
-    final updated = await showDialog<String>(
+  Future<void> _openTemplateEditor([TemplateModel? existing]) async {
+    final s = widget.s;
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final bodyCtrl = TextEditingController(text: existing?.body ?? '');
+    final saved = await showModalBottomSheet<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Edit ${tpl.title}'),
-        content: TextField(
-          controller: ctrl,
-          maxLines: 10,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            child: const Text('Save'),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                existing == null ? s.t('add_template') : s.t('edit_template'),
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: titleCtrl,
+                decoration: InputDecoration(
+                  labelText: s.t('template_title'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: bodyCtrl,
+                maxLines: 9,
+                decoration: InputDecoration(
+                  labelText: s.t('template_body'),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(s.t('placeholders_hint'),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(s.t('save')),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
-    if (updated != null) {
+    if (saved == true && titleCtrl.text.trim().isNotEmpty) {
       await widget.service.saveTemplate(TemplateModel(
-        id: tpl.id,
-        order: tpl.order,
-        title: tpl.title,
-        stage: tpl.stage,
-        body: updated,
+        id: existing?.id ?? '',
+        order: existing?.order ?? (widget.templates.length + 1),
+        title: titleCtrl.text.trim(),
+        stage: existing?.stage ?? 'custom',
+        body: bodyCtrl.text,
       ));
     }
   }
 
+  Future<void> _confirmLoadDefaults() async {
+    final s = widget.s;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(s.t('load_lakfa_defaults')),
+        content: Text(s.t('load_defaults_q')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.t('cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.t('save')),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await widget.service.seedLakfaDefaults();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(s.t('defaults_loaded'))),
+        );
+      }
+    }
+  }
+
+  Widget _field(TextEditingController ctrl, String label,
+      {TextInputType? type}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: TextField(
+        controller: ctrl,
+        keyboardType: type,
+        decoration: InputDecoration(
+          labelText: label,
+          isDense: true,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final s = widget.s;
+    final currentLang = widget.profile.appLanguage;
+
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('White-Label Business Profile',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 10),
-                TextField(
-                    controller: _brandCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Business Name',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _taglineCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Tagline',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _phoneCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Business WhatsApp Phone',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _websiteCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Website',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _instaCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Instagram Handle',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _reviewCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Google Review Link',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _courierCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Courier Name',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-                const SizedBox(height: 8),
-                TextField(
-                    controller: _trackingUrlCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Courier Tracking URL',
-                        border: OutlineInputBorder(),
-                        isDense: true)),
-              ],
-            ),
+        // 1. APP LANGUAGE SWITCHER (EN / ML)
+        _CardBox(
+          title: s.t('app_language'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s.t('lang_desc'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'en', label: Text('English')),
+                    ButtonSegment(value: 'ml', label: Text('മലയാളം')),
+                  ],
+                  selected: {currentLang},
+                  onSelectionChanged: (set) {
+                    widget.service.updateAppLanguage(set.first);
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Delivery Charge Rules Engine',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                RadioListTile<DeliveryMode>(
-                  title: const Text('Per Pack (ഓരോ പാക്കിനും വെവ്വേറെ)'),
-                  value: DeliveryMode.perPack,
-                  groupValue: _mode,
-                  onChanged: (v) => setState(() => _mode = v!),
-                ),
-                RadioListTile<DeliveryMode>(
-                  title: const Text('Free Above Order Total (പരിധിക്ക് മുകളിൽ സൗജന്യം)'),
-                  value: DeliveryMode.cartThreshold,
-                  groupValue: _mode,
-                  onChanged: (v) => setState(() => _mode = v!),
-                ),
-                if (_mode == DeliveryMode.cartThreshold)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _thresholdCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Free Above ₹',
-                              border: OutlineInputBorder(),
-                              isDense: true),
-                        ),
+        const SizedBox(height: 10),
+        // 2. BUSINESS PROFILE
+        _CardBox(
+          title: s.t('business_profile'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _field(_brandCtrl, s.t('brand_name')),
+              _field(_taglineCtrl, s.t('tagline')),
+              _field(_phoneCtrl, s.t('business_phone'),
+                  type: TextInputType.phone),
+              _field(_websiteCtrl, s.t('website')),
+              _field(_instaCtrl, s.t('instagram_handle')),
+              _field(_instaUrlCtrl, s.t('instagram_url')),
+              _field(_reviewCtrl, s.t('review_url')),
+              _field(_courierCtrl, s.t('courier_name')),
+              _field(_trackingUrlCtrl, s.t('tracking_url')),
+              _field(_bankCtrl, s.t('payment_bank')),
+              const SizedBox(height: 4),
+              Text(s.t('theme_color'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: _presetColors.map((hex) {
+                  final selected = _colorHex == hex;
+                  return InkWell(
+                    onTap: () => setState(() => _colorHex = hex),
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Color(hex),
+                        shape: BoxShape.circle,
+                        border: selected
+                            ? Border.all(color: Colors.black, width: 2.5)
+                            : null,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: _belowCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                              labelText: 'Below Charge ₹',
-                              border: OutlineInputBorder(),
-                              isDense: true),
-                        ),
-                      ),
-                    ],
-                  ),
-                RadioListTile<DeliveryMode>(
-                  title: const Text('Flat Charge Per Order (എല്ലാ ഓർഡറിനും ഒറ്റ ചാർജ്)'),
-                  value: DeliveryMode.flatPerOrder,
-                  groupValue: _mode,
-                  onChanged: (v) => setState(() => _mode = v!),
-                ),
-                if (_mode == DeliveryMode.flatPerOrder)
-                  TextField(
-                    controller: _flatCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                        labelText: 'Flat Delivery Charge ₹',
-                        border: OutlineInputBorder(),
-                        isDense: true),
-                  ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _saveSettings,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Save Business & Delivery Settings'),
-                ),
-              ],
-            ),
+                      child: selected
+                          ? const Icon(Icons.check,
+                              size: 16, color: Colors.white)
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('WhatsApp Templates (Tap to Edit)',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 8),
-                ...widget.templates.map((t) => ListTile(
-                      dense: true,
-                      title: Text(t.title),
-                      trailing: const Icon(Icons.edit_outlined, size: 18),
-                      onTap: () => _editTemplate(t),
-                    )),
-                const Divider(),
+        const SizedBox(height: 10),
+        // 3. DELIVERY RULES
+        _CardBox(
+          title: s.t('delivery_rules'),
+          child: Column(
+            children: [
+              RadioListTile<DeliveryMode>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(s.t('mode_per_pack'),
+                    style: const TextStyle(fontSize: 13)),
+                value: DeliveryMode.perPack,
+                groupValue: _mode,
+                onChanged: (v) => setState(() => _mode = v!),
+              ),
+              RadioListTile<DeliveryMode>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(s.t('mode_threshold'),
+                    style: const TextStyle(fontSize: 13)),
+                value: DeliveryMode.cartThreshold,
+                groupValue: _mode,
+                onChanged: (v) => setState(() => _mode = v!),
+              ),
+              if (_mode == DeliveryMode.cartThreshold)
                 Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          await widget.service.seedLakfaDefaults();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'Lakfa Foods Default Data Loaded ✅')),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.auto_fix_high),
-                        label: const Text('Load Lakfa Defaults'),
-                      ),
-                    ),
+                        child: _field(_thresholdCtrl, s.t('free_above'),
+                            type: TextInputType.number)),
                     const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => FirebaseAuth.instance.signOut(),
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Sign Out'),
-                    ),
+                    Expanded(
+                        child: _field(_belowCtrl, s.t('below_charge'),
+                            type: TextInputType.number)),
                   ],
                 ),
-              ],
-            ),
+              RadioListTile<DeliveryMode>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                title: Text(s.t('mode_flat'),
+                    style: const TextStyle(fontSize: 13)),
+                value: DeliveryMode.flatPerOrder,
+                groupValue: _mode,
+                onChanged: (v) => setState(() => _mode = v!),
+              ),
+              if (_mode == DeliveryMode.flatPerOrder)
+                _field(_flatCtrl, s.t('flat_charge'),
+                    type: TextInputType.number),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _saveSettings,
+                  icon: const Icon(Icons.save, size: 18),
+                  label: Text(s.t('save_settings')),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        // 4. TEMPLATES & ACCOUNT
+        _CardBox(
+          title: s.t('templates_section'),
+          trailing: TextButton.icon(
+            onPressed: () => _openTemplateEditor(),
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(s.t('add_template'),
+                style: const TextStyle(fontSize: 12)),
+          ),
+          child: Column(
+            children: [
+              ...widget.templates.map((t) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(t.title, style: const TextStyle(fontSize: 13)),
+                    trailing: const Icon(Icons.edit_outlined, size: 18),
+                    onTap: () => _openTemplateEditor(t),
+                  )),
+              const Divider(),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _confirmLoadDefaults,
+                      icon: const Icon(Icons.auto_fix_high, size: 16),
+                      label: Text(s.t('load_lakfa_defaults'),
+                          style: const TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => FirebaseAuth.instance.signOut(),
+                    icon: const Icon(Icons.logout, size: 16, color: Colors.red),
+                    label: Text(s.t('sign_out'),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.red)),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CardBox extends StatelessWidget {
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
+  const _CardBox({required this.title, required this.child, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14)),
+              if (trailing != null) trailing!,
+            ],
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
     );
   }
 }

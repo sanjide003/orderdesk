@@ -15,6 +15,7 @@ class LakfaSeedData {
     courierName: 'DTDC Courier',
     trackingUrl: 'https://www.dtdc.com/track-your-shipment/',
     paymentBankLabel: 'HDFC Bank QR Code',
+    appLanguage: 'en',
     primaryColorHex: 0xFF0F766E,
   );
 
@@ -29,27 +30,27 @@ class LakfaSeedData {
     const ProductModel(
       id: 'lakfa_tuna_pickle',
       name: 'Lakfa Tuna Pickle',
-      origin: 'ചെത്‌ലത്ത് ദ്വീപിൽ നിർമ്മിച്ചത്',
+      origin: 'Made in Chetlat Island, Lakshadweep',
       active: true,
       packs: [
         ProductPack(
           label: '350g',
           price: 549,
-          taxNote: '5% GST ഉൾപ്പെടെ',
+          taxNote: '5% GST incl.',
           deliveryCharge: 50,
         ),
         ProductPack(
           label: '1 kg',
           price: 1200,
-          taxNote: '5% GST ഉൾപ്പെടെ',
+          taxNote: '5% GST incl.',
           deliveryCharge: 0,
         ),
       ],
       highlights: [
-        '🌴 ലക്ഷദ്വീപിന്റെ പാരമ്പര്യ രുചിക്കൂട്ട്',
-        '🐟 ഉയർന്ന നിലവാരമുള്ള ട്യൂണ മത്സ്യം',
-        '🥥 ലക്ഷദ്വീപ് തേങ്ങാ വിനാഗിരി (Coconut Vinegar)',
-        '🚫 കൃത്രിമ നിറങ്ങളോ രുചി വർധകങ്ങളോ ഇല്ല',
+        '🌴 Traditional Lakshadweep recipe',
+        '🐟 High-quality Lakshadweep tuna fish',
+        '🥥 Natural Lakshadweep Coconut Vinegar',
+        '🚫 No artificial colors or flavor enhancers',
       ],
       posterCaption:
           'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
@@ -63,7 +64,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '01_welcome',
       order: 1,
-      title: '1. Welcome & Intro',
+      title: '1. Welcome',
       stage: 'welcome',
       body: '👋 നമസ്കാരം! *{{brand_name}}*-ലേക്ക് ഹൃദയം നിറഞ്ഞ സ്വാഗതം. 😊❤️\n\n'
           'ലക്ഷദ്വീപിന്റെ തനത് രുചികൾ എല്ലാവരിലേക്കും എത്തിക്കുക എന്ന ലക്ഷ്യത്തോടെ ആരംഭിച്ച ഒരു സ്റ്റാർട്ടപ്പ് ബ്രാൻഡാണ് ഞങ്ങൾ.\n\n'
@@ -73,14 +74,14 @@ class LakfaSeedData {
     const TemplateModel(
       id: '02_product_list',
       order: 2,
-      title: '2. Product List & Pricing',
+      title: '2. Price List',
       stage: 'pricing',
-      body: '*{{brand_name}} - ലഭ്യമായ പാക്കുകൾ*\n\n{{product_list}}',
+      body: '*{{brand_name}} - Available Packs*\n\n{{product_list}}',
     ),
     const TemplateModel(
       id: '03_poster_standard',
       order: 3,
-      title: '3. Poster Caption (Standard)',
+      title: '3. Poster Caption',
       stage: 'poster',
       body: 'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
           'ലക്ഷദ്വീപിന്റെ തനത് രുചിക്കൂട്ടിൽ തയ്യാറാക്കിയ *Lakfa Tuna Pickle* ഇന്ന് തന്നെ പരീക്ഷിക്കൂ.\n'
@@ -90,7 +91,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '04_poster_vinegar',
       order: 4,
-      title: '4. Poster Caption (സുർക്ക)',
+      title: '4. Vinegar Poster',
       stage: 'poster',
       body: 'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
           'ലക്ഷദ്വീപ് തേങ്ങാ സുർക്കയുടെ (Coconut Vinegar) പെരുമയിൽ തയ്യാറാക്കിയ *Lakfa Tuna Pickle* പരീക്ഷിക്കൂ.\n'
@@ -100,7 +101,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '05_address_request',
       order: 5,
-      title: '5. Order Address Collection',
+      title: '5. Address Request',
       stage: 'address',
       body: '*ഓർഡർ ചെയ്യുന്നതിനായി ദയവായി താഴെ പറയുന്ന വിവരങ്ങൾ അയച്ചുതരുക:*\n\n'
           '1. Full Name\n'
@@ -112,7 +113,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '06_payment_details',
       order: 6,
-      title: '6. Payment Details & Total',
+      title: '6. Payment Details',
       stage: 'payment',
       body: '*Payment Details*\n\n'
           'മുകളിൽ നൽകിയിരിക്കുന്ന {{payment_bank}} സ്കാൻ ചെയ്ത് പേയ്മെന്റ് ചെയ്യുക.\n\n'
@@ -128,7 +129,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '07_payment_confirmed',
       order: 7,
-      title: '7. Payment Confirmed',
+      title: '7. Payment Paid',
       stage: 'paid',
       body: '*Payment Received* ✅\n\n'
           'നന്ദി! താങ്കളുടെ പേയ്മെന്റ് വിജയകരമായി ലഭിച്ചിട്ടുണ്ട്. താങ്കളുടെ ഓർഡർ സ്ഥിരീകരിച്ചിരിക്കുന്നു.\n\n'
@@ -140,7 +141,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '08_dispatched',
       order: 8,
-      title: '8. Order Dispatched (DTDC)',
+      title: '8. Dispatched',
       stage: 'dispatched',
       body: '*Order Dispatched Successfully!* ✅\n\n'
           'നമസ്കാരം! താങ്കളുടെ *{{pack_summary}}* വിജയകരമായി *{{courier_name}}* വഴി ഡിസ്പാച്ച് ചെയ്തിരിക്കുന്നു.\n\n'
@@ -157,7 +158,7 @@ class LakfaSeedData {
     const TemplateModel(
       id: '09_review_followup',
       order: 9,
-      title: '9. Delivery Check-in & Review',
+      title: '9. Review Follow-up',
       stage: 'review',
       body: 'നമസ്കാരം!\n\n'
           'താങ്കളുടെ *{{pack_summary}}* സുരക്ഷിതമായി ലഭിച്ചോ?\n\n'

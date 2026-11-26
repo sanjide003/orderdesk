@@ -7,11 +7,9 @@ import 'screens/login_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (DefaultFirebaseOptions.isConfigured) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  }
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const OrderDeskApp());
 }
 
@@ -26,42 +24,19 @@ class OrderDeskApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: const Color(0xFF0F766E),
+        scaffoldBackgroundColor: const Color(0xFFF4F7F6),
       ),
-      home: DefaultFirebaseOptions.isConfigured
-          ? StreamBuilder<User?>(
-              stream: FirebaseAuth.instance.authStateChanges(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snapshot.hasData) return const HomeShell();
-                return const LoginScreen();
-              },
-            )
-          : const _SetupNeededScreen(),
-    );
-  }
-}
-
-class _SetupNeededScreen extends StatelessWidget {
-  const _SetupNeededScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Firebase Config ചേർക്കുക:\n\n'
-            'lib/firebase_options.dart ഫയലിൽ നിങ്ങളുടെ Firebase Web & Android keys നൽകുക '
-            '(വിശദമായ സ്റ്റെപ്പുകൾ SETUP_GUIDE.md ഫയലിൽ ഉണ്ട്).',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasData) return const HomeShell();
+          return const LoginScreen();
+        },
       ),
     );
   }
