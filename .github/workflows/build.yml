@@ -1,0 +1,58 @@
+name: Build Universal APK & Web
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter (Stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Generate Android & Web Platform Files (com.wapp.orderdesk)
+        run: |
+          if [ ! -d "android" ] || [ ! -d "web" ]; then
+            flutter create --platforms=android,web --org com.wapp --project-name orderdesk .
+          fi
+
+      - name: Copy google-services.json to Android App
+        run: |
+          if [ -f "firebase/google-services.json" ]; then
+            cp firebase/google-services.json android/app/google-services.json
+          fi
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Universal Android APK
+        run: flutter build apk --release
+
+      - name: Build Flutter Web
+        run: flutter build web --release
+
+      - name: Upload Universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: orderdesk-universal-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload Web Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: orderdesk-web-build
+          path: build/web

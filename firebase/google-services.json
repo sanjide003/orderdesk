@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "740400697832",
+    "project_id": "order-desk-wapp",
+    "storage_bucket": "order-desk-wapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:740400697832:android:18e66f7b7f02038559945d",
+        "android_client_info": {
+          "package_name": "com.wapp.orderdesk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxHYaVAVQJWXkjQRoNRYVm_NpMNCyEuOc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
