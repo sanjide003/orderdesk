@@ -16,8 +16,7 @@ class ProductsScreen extends StatelessWidget {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final originCtrl = TextEditingController(text: existing?.origin ?? '');
     final highlightsCtrl = TextEditingController(
-        text: existing?.highlights.join('
-') ?? '');
+        text: existing?.highlights.join('\n') ?? '');
     final packs = List<ProductPack>.from(existing?.packs ??
         [const ProductPack(label: '500g', price: 500, deliveryCharge: 50)]);
     bool active = existing?.active ?? true;
@@ -154,8 +153,7 @@ class ProductsScreen extends StatelessWidget {
                       active: active,
                       packs: packs,
                       highlights: highlightsCtrl.text
-                          .split('
-')
+                          .split('\n')
                           .map((e) => e.trim())
                           .where((e) => e.isNotEmpty)
                           .toList(),

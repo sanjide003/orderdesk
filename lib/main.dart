@@ -55,9 +55,7 @@ class _SetupNeededScreen extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Firebase Config ചേർക്കുക:
-
-'
+            'Firebase Config ചേർക്കുക:\n\n'
             'lib/firebase_options.dart ഫയലിൽ നിങ്ങളുടെ Firebase Web & Android keys നൽകുക '
             '(വിശദമായ സ്റ്റെപ്പുകൾ SETUP_GUIDE.md ഫയലിൽ ഉണ്ട്).',
             textAlign: TextAlign.center,

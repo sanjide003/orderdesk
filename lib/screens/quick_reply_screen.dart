@@ -234,8 +234,7 @@ class _QuickReplyScreenState extends State<QuickReplyScreen> {
                     Expanded(
                       child: Text(
                         'Subtotal: ${TemplateEngine.formatMoney(calc.subtotal)} | '
-                        'Delivery: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}
-'
+                        'Delivery: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}\n'
                         'Total: ${TemplateEngine.formatMoney(calc.total)}',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
