@@ -1,7 +1,7 @@
 name: orderdesk
-description: White-label WhatsApp Smart Reply, Dynamic Multi-Product Catalog & Order CRM (Flutter Android + Web, Firebase Spark Free Plan).
+description: White-label WhatsApp Smart Reply, Dynamic Multi-Product Catalog, Custom Profile Variables & Order CRM (Flutter Android + Web).
 publish_to: 'none'
-version: 2.0.0+2
+version: 4.0.0+4
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -15,6 +15,7 @@ dependencies:
   url_launcher: ^6.3.1
   share_plus: ^10.1.2
   intl: ^0.19.0
+  http: ^1.2.2
 
 dev_dependencies:
   flutter_test:

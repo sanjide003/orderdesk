@@ -20,11 +20,9 @@ class DeliveryCalculator {
     double? manualDeliveryOverride,
   }) {
     final subtotal = items.fold<double>(0, (sum, item) => sum + item.lineSubtotal);
-
     if (items.isEmpty) {
       return const PriceBreakdown(subtotal: 0, deliveryCharge: 0, total: 0);
     }
-
     if (manualDeliveryOverride != null) {
       return PriceBreakdown(
         subtotal: subtotal,
@@ -32,7 +30,6 @@ class DeliveryCalculator {
         total: subtotal + manualDeliveryOverride,
       );
     }
-
     double delivery = 0;
     switch (rules.mode) {
       case DeliveryMode.perPack:
@@ -47,7 +44,6 @@ class DeliveryCalculator {
         delivery = rules.flatCharge;
         break;
     }
-
     return PriceBreakdown(
       subtotal: subtotal,
       deliveryCharge: delivery,

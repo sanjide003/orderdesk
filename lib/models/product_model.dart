@@ -20,14 +20,12 @@ class ProductPack {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'label': label,
-      'price': price,
-      'taxNote': taxNote,
-      'deliveryCharge': deliveryCharge,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'label': label,
+        'price': price,
+        'taxNote': taxNote,
+        'deliveryCharge': deliveryCharge,
+      };
 }
 
 class ProductModel {
@@ -37,7 +35,9 @@ class ProductModel {
   final bool active;
   final List<ProductPack> packs;
   final List<String> highlights;
-  final String posterCaption;
+  final String posterCaptionMl;
+  final String posterCaptionEn;
+  final String posterCaptionManglish;
 
   const ProductModel({
     required this.id,
@@ -46,12 +46,15 @@ class ProductModel {
     this.active = true,
     required this.packs,
     this.highlights = const [],
-    this.posterCaption = '',
+    this.posterCaptionMl = '',
+    this.posterCaptionEn = '',
+    this.posterCaptionManglish = '',
   });
 
   factory ProductModel.fromMap(String id, Map<String, dynamic> map) {
     final rawPacks = (map['packs'] as List<dynamic>? ?? []);
     final rawHighlights = (map['highlights'] as List<dynamic>? ?? []);
+    final legacyCaption = (map['posterCaption'] ?? '') as String;
     return ProductModel(
       id: id,
       name: (map['name'] ?? '') as String,
@@ -61,18 +64,20 @@ class ProductModel {
           .map((e) => ProductPack.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
       highlights: rawHighlights.map((e) => e.toString()).toList(),
-      posterCaption: (map['posterCaption'] ?? '') as String,
+      posterCaptionMl: (map['posterCaptionMl'] ?? legacyCaption) as String,
+      posterCaptionEn: (map['posterCaptionEn'] ?? '') as String,
+      posterCaptionManglish: (map['posterCaptionManglish'] ?? '') as String,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'origin': origin,
-      'active': active,
-      'packs': packs.map((e) => e.toMap()).toList(),
-      'highlights': highlights,
-      'posterCaption': posterCaption,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'name': name,
+        'origin': origin,
+        'active': active,
+        'packs': packs.map((e) => e.toMap()).toList(),
+        'highlights': highlights,
+        'posterCaptionMl': posterCaptionMl,
+        'posterCaptionEn': posterCaptionEn,
+        'posterCaptionManglish': posterCaptionManglish,
+      };
 }

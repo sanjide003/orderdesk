@@ -66,10 +66,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Icon(Icons.chat_rounded,
-                            size: 36, color: cs.primary),
+                            size: 34, color: cs.primary),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Text(
                       s.t('app_title'),
                       textAlign: TextAlign.center,
@@ -83,13 +83,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       style:
                           TextStyle(fontSize: 13, color: Colors.grey.shade600),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
                     TextField(
                       controller: _emailCtrl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: s.t('email'),
-                        prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                        prefixIcon: const Icon(Icons.email_outlined, size: 19),
                         isDense: true,
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -102,13 +102,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       onSubmitted: (_) => _signIn(),
                       decoration: InputDecoration(
                         labelText: s.t('password'),
-                        prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 19),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            size: 20,
+                            size: 19,
                           ),
                           onPressed: () =>
                               setState(() => _obscure = !_obscure),
@@ -142,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : Text(s.t('sign_in'),
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                                    fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ],

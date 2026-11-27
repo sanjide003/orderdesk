@@ -19,8 +19,7 @@ class WhatsAppService {
     final url = normalized.isNotEmpty
         ? 'https://wa.me/$normalized?text=$encoded'
         : 'https://wa.me/?text=$encoded';
-    final uri = Uri.parse(url);
-    return launchUrl(uri, mode: LaunchMode.externalApplication);
+    return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
   static Future<bool> callPhone(String rawPhone) async {

@@ -34,6 +34,7 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   String _filter = 'All';
   String _query = '';
+  String _replyLang = 'ml';
 
   Color _statusColor(String status) {
     switch (status) {
@@ -64,7 +65,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final tpl = _findTemplate(stage);
     if (tpl == null) return;
     final msg = TemplateEngine.render(
-      templateBody: tpl.body,
+      templateBody: tpl.bodyForLang(_replyLang),
       profile: widget.profile,
       products: widget.products,
       subtotal: order.subtotal,
@@ -155,19 +156,52 @@ class _OrdersScreenState extends State<OrdersScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-          child: TextField(
-            onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
-              hintText: s.t('search_orders'),
-              prefixIcon: const Icon(Icons.search, size: 18),
-              isDense: true,
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Colors.black12),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: s.t('search_orders'),
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.black12),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+              PopupMenuButton<String>(
+                initialValue: _replyLang,
+                onSelected: (v) => setState(() => _replyLang = v),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.black26),
+                  ),
+                  child: Text(
+                    _replyLang == 'en'
+                        ? 'EN'
+                        : (_replyLang == 'manglish' ? 'MG' : 'മ'),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800, fontSize: 12),
+                  ),
+                ),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'ml', child: Text(s.t('lang_ml'))),
+                  PopupMenuItem(value: 'en', child: Text(s.t('lang_en'))),
+                  PopupMenuItem(
+                      value: 'manglish', child: Text(s.t('lang_manglish'))),
+                ],
+              ),
+            ],
           ),
         ),
         SingleChildScrollView(
@@ -247,12 +281,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             style: TextStyle(
                                 color: Colors.grey.shade600, fontSize: 11),
                           ),
-                          if (o.address.isNotEmpty)
-                            Text(o.address,
-                                style: TextStyle(
-                                    color: Colors.grey.shade700, fontSize: 11),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
                           if (o.trackingId.isNotEmpty)
                             Text('Tracking: ${o.trackingId}',
                                 style: const TextStyle(
@@ -295,14 +323,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Icons.call_outlined, size: 18),
+                                icon: const Icon(Icons.call_outlined, size: 17),
                                 visualDensity: VisualDensity.compact,
                                 onPressed: () =>
                                     WhatsAppService.callPhone(o.phone),
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete_outline,
-                                    size: 18, color: Colors.red),
+                                    size: 17, color: Colors.red),
                                 visualDensity: VisualDensity.compact,
                                 onPressed: () => _confirmDelete(o),
                               ),
@@ -348,7 +376,7 @@ class _ActionPill extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon,
-                size: 14, color: highlighted ? Colors.white : cs.onSurface),
+                size: 13, color: highlighted ? Colors.white : cs.onSurface),
             const SizedBox(width: 4),
             Text(
               label,

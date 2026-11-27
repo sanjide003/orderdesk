@@ -8,10 +8,11 @@ import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
 import '../services/lakfa_seed_data.dart';
 import 'dashboard_screen.dart';
+import 'new_order_screen.dart';
 import 'orders_screen.dart';
 import 'products_screen.dart';
-import 'quick_reply_screen.dart';
 import 'settings_screen.dart';
+import 'templates_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -55,15 +56,52 @@ class _HomeShellState extends State<HomeShell> {
                         stream: _service.watchOrders(),
                         builder: (context, ordSnap) {
                           final orders = ordSnap.data ?? [];
+
+                          void openProducts() {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ProductsScreen(
+                                  service: _service,
+                                  products: products,
+                                  s: s,
+                                ),
+                              ),
+                            );
+                          }
+
+                          void openSettings() {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SettingsScreen(
+                                  service: _service,
+                                  profile: profile,
+                                  rules: rules,
+                                  s: s,
+                                ),
+                              ),
+                            );
+                          }
+
                           final pages = [
                             DashboardScreen(
                               profile: profile,
                               orders: orders,
                               s: s,
-                              onNavigate: (idx) =>
-                                  setState(() => _tabIndex = idx),
+                              onNavigateTab: (i) =>
+                                  setState(() => _tabIndex = i),
+                              onOpenProducts: openProducts,
+                              onOpenSettings: openSettings,
                             ),
-                            QuickReplyScreen(
+                            TemplatesScreen(
+                              service: _service,
+                              profile: profile,
+                              products: products,
+                              templates: templates,
+                              s: s,
+                            ),
+                            NewOrderScreen(
                               service: _service,
                               profile: profile,
                               rules: rules,
@@ -77,18 +115,6 @@ class _HomeShellState extends State<HomeShell> {
                               products: products,
                               templates: templates,
                               orders: orders,
-                              s: s,
-                            ),
-                            ProductsScreen(
-                              service: _service,
-                              products: products,
-                              s: s,
-                            ),
-                            SettingsScreen(
-                              service: _service,
-                              profile: profile,
-                              rules: rules,
-                              templates: templates,
                               s: s,
                             ),
                           ];
@@ -114,7 +140,15 @@ class _HomeShellState extends State<HomeShell> {
                                         color: Colors.white),
                                   ),
                                   onPressed: () => _service.updateAppLanguage(
-                                      profile.appLanguage == 'ml' ? 'en' : 'ml'),
+                                      profile.appLanguage == 'ml'
+                                          ? 'en'
+                                          : 'ml'),
+                                ),
+                                IconButton(
+                                  tooltip: s.t('tile_settings'),
+                                  icon: const Icon(Icons.settings_outlined,
+                                      size: 20),
+                                  onPressed: openSettings,
                                 ),
                               ],
                             ),
@@ -126,7 +160,7 @@ class _HomeShellState extends State<HomeShell> {
                               ),
                             ),
                             bottomNavigationBar: NavigationBar(
-                              height: 62,
+                              height: 60,
                               selectedIndex: _tabIndex,
                               labelBehavior:
                                   NavigationDestinationLabelBehavior.alwaysShow,
@@ -141,11 +175,22 @@ class _HomeShellState extends State<HomeShell> {
                                   label: s.t('nav_home'),
                                 ),
                                 NavigationDestination(
-                                  icon: const Icon(Icons.flash_on_outlined,
+                                  icon: const Icon(
+                                      Icons.format_list_numbered_rounded,
                                       size: 21),
-                                  selectedIcon:
-                                      const Icon(Icons.flash_on, size: 21),
-                                  label: s.t('nav_reply'),
+                                  selectedIcon: const Icon(
+                                      Icons.format_list_numbered_rounded,
+                                      size: 21),
+                                  label: s.t('nav_templates'),
+                                ),
+                                NavigationDestination(
+                                  icon: const Icon(
+                                      Icons.add_shopping_cart_rounded,
+                                      size: 21),
+                                  selectedIcon: const Icon(
+                                      Icons.add_shopping_cart_rounded,
+                                      size: 21),
+                                  label: s.t('nav_new_order'),
                                 ),
                                 NavigationDestination(
                                   icon: const Icon(Icons.receipt_long_outlined,
@@ -153,20 +198,6 @@ class _HomeShellState extends State<HomeShell> {
                                   selectedIcon:
                                       const Icon(Icons.receipt_long, size: 21),
                                   label: s.t('nav_orders'),
-                                ),
-                                NavigationDestination(
-                                  icon: const Icon(Icons.inventory_2_outlined,
-                                      size: 21),
-                                  selectedIcon:
-                                      const Icon(Icons.inventory_2, size: 21),
-                                  label: s.t('nav_products'),
-                                ),
-                                NavigationDestination(
-                                  icon: const Icon(Icons.settings_outlined,
-                                      size: 21),
-                                  selectedIcon:
-                                      const Icon(Icons.settings, size: 21),
-                                  label: s.t('nav_settings'),
                                 ),
                               ],
                             ),

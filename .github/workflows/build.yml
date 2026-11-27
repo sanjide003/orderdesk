@@ -1,4 +1,4 @@
-name: Fast Build (Android arm64 + Web to Vercel)
+name: Fast Build & Publish (Vercel Web + Direct APK Update)
 
 on:
   push:
@@ -10,42 +10,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_web:
-    name: Build Website & Publish web-dist
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      - name: Generate Web Platform Files
-        run: |
-          if [ ! -d "web" ]; then
-            flutter create --platforms=web --org com.wapp --project-name orderdesk .
-          fi
-      - run: flutter pub get
-      - run: flutter build web --release
-      - name: Add Vercel SPA Rewrite Config
-        run: |
-          cat << 'VJSON' > build/web/vercel.json
-          {
-            "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-          }
-          VJSON
-      - name: Publish Compiled Web to web-dist Branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: web-dist
-          publish_dir: ./build/web
-          force_orphan: true
-
   build_android:
-    name: Build Android APK (arm64 Latest)
+    name: Build Android APK (arm64)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -81,3 +47,75 @@ jobs:
         with:
           name: orderdesk-android-arm64-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+  build_and_publish_web:
+    name: Build Web & Bundle Direct APK to Vercel
+    needs: [ build_android ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Ensure Web Platform Config Exists (Preserve Custom index.html)
+        run: |
+          cp web/index.html /tmp/custom_index.html
+          cp web/manifest.json /tmp/custom_manifest.json
+          flutter create --platforms=web --org com.wapp --project-name orderdesk .
+          cp /tmp/custom_index.html web/index.html
+          cp /tmp/custom_manifest.json web/manifest.json
+      - run: flutter pub get
+      - run: flutter build web --release
+      - name: Download Built APK into Web Downloads Folder
+        uses: actions/download-artifact@v4
+        with:
+          name: orderdesk-android-arm64-apk
+          path: build/web/downloads
+      - name: Rename APK, Write version.json & vercel.json
+        run: |
+          mv build/web/downloads/app-release.apk build/web/downloads/orderdesk-latest.apk
+          VER_LINE=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
+          BUILD_NUM=$(echo "$VER_LINE" | cut -d'+' -f2)
+          NOW_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          cat << VJSON > build/web/version.json
+          {
+            "version": "$VER_NAME",
+            "buildNumber": $BUILD_NUM,
+            "apkUrl": "https://orderdeskwapp.vercel.app/downloads/orderdesk-latest.apk",
+            "updatedAt": "$NOW_UTC"
+          }
+          VJSON
+          cat << VCJSON > build/web/vercel.json
+          {
+            "headers": [
+              {
+                "source": "/version.json",
+                "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+              },
+              {
+                "source": "/downloads/(.*)",
+                "headers": [
+                  { "key": "Content-Disposition", "value": "attachment; filename=orderdesk-latest.apk" },
+                  { "key": "Content-Type", "value": "application/vnd.android.package-archive" }
+                ]
+              }
+            ],
+            "rewrites": [
+              { "source": "/downloads/(.*)", "destination": "/downloads/$1" },
+              { "source": "/version.json", "destination": "/version.json" },
+              { "source": "/(.*)", "destination": "/index.html" }
+            ]
+          }
+          VCJSON
+      - name: Publish Web + Direct APK to web-dist Branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: web-dist
+          publish_dir: ./build/web
+          force_orphan: true

@@ -1,8 +1,4 @@
-enum DeliveryMode {
-  perPack,
-  cartThreshold,
-  flatPerOrder,
-}
+enum DeliveryMode { perPack, cartThreshold, flatPerOrder }
 
 class DeliveryRules {
   final DeliveryMode mode;
@@ -33,10 +29,8 @@ class DeliveryRules {
     return DeliveryRules(
       mode: parsedMode,
       flatCharge: ((map['flatCharge'] ?? 50) as num).toDouble(),
-      freeThresholdAmount:
-          ((map['freeThresholdAmount'] ?? 1000) as num).toDouble(),
-      belowThresholdCharge:
-          ((map['belowThresholdCharge'] ?? 50) as num).toDouble(),
+      freeThresholdAmount: ((map['freeThresholdAmount'] ?? 1000) as num).toDouble(),
+      belowThresholdCharge: ((map['belowThresholdCharge'] ?? 50) as num).toDouble(),
     );
   }
 

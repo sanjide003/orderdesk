@@ -31,16 +31,14 @@ class OrderItem {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'productId': productId,
-      'productName': productName,
-      'packLabel': packLabel,
-      'unitPrice': unitPrice,
-      'packDeliveryCharge': packDeliveryCharge,
-      'quantity': quantity,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'productId': productId,
+        'productName': productName,
+        'packLabel': packLabel,
+        'unitPrice': unitPrice,
+        'packDeliveryCharge': packDeliveryCharge,
+        'quantity': quantity,
+      };
 }
 
 class OrderModel {
@@ -126,21 +124,19 @@ class OrderModel {
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'customerName': customerName,
-      'phone': phone,
-      'address': address,
-      'items': items.map((e) => e.toMap()).toList(),
-      'subtotal': subtotal,
-      'deliveryCharge': deliveryCharge,
-      'totalAmount': totalAmount,
-      'status': status,
-      'trackingId': trackingId,
-      'reviewSent': reviewSent,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'dispatchedAt':
-          dispatchedAt != null ? Timestamp.fromDate(dispatchedAt!) : null,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'customerName': customerName,
+        'phone': phone,
+        'address': address,
+        'items': items.map((e) => e.toMap()).toList(),
+        'subtotal': subtotal,
+        'deliveryCharge': deliveryCharge,
+        'totalAmount': totalAmount,
+        'status': status,
+        'trackingId': trackingId,
+        'reviewSent': reviewSent,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'dispatchedAt':
+            dispatchedAt != null ? Timestamp.fromDate(dispatchedAt!) : null,
+      };
 }

@@ -3,8 +3,6 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
-  static bool get isConfigured => true;
-
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) return web;
     switch (defaultTargetPlatform) {

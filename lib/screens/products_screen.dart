@@ -240,87 +240,93 @@ class ProductsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: products.isEmpty
-          ? Center(child: Text(s.t('no_products')))
-          : ListView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-              itemCount: products.length,
-              itemBuilder: (ctx, i) {
-                final p = products[i];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.black12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+      appBar: AppBar(title: Text(s.t('products_title'))),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: products.isEmpty
+              ? Center(child: Text(s.t('no_products')))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                  itemCount: products.length,
+                  itemBuilder: (ctx, i) {
+                    final p = products[i];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(p.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14)),
-                                if (p.origin.isNotEmpty)
-                                  Text(p.origin,
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade600)),
-                              ],
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(p.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14)),
+                                    if (p.origin.isNotEmpty)
+                                      Text(p.origin,
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade600)),
+                                  ],
+                                ),
+                              ),
+                              Switch(
+                                value: p.active,
+                                onChanged: (v) =>
+                                    service.toggleProductActive(p.id, v),
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.edit_outlined, size: 18),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => _openEditor(context, p),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 18, color: Colors.red),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => _confirmDelete(context, p),
+                              ),
+                            ],
                           ),
-                          Switch(
-                            value: p.active,
-                            onChanged: (v) =>
-                                service.toggleProductActive(p.id, v),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 18),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => _openEditor(context, p),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                size: 18, color: Colors.red),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => _confirmDelete(context, p),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: p.packs
+                                .map((pk) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F4),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    ))
+                                .toList(),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: p.packs
-                            .map((pk) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F4),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
-                                    style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context),
         icon: const Icon(Icons.add),

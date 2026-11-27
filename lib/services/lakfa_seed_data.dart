@@ -17,6 +17,13 @@ class LakfaSeedData {
     paymentBankLabel: 'HDFC Bank QR Code',
     appLanguage: 'en',
     primaryColorHex: 0xFF0F766E,
+    customFields: [
+      CustomProfileField(
+        key: 'origin_island',
+        label: 'Origin Island',
+        value: 'Chetlat Island, Lakshadweep',
+      ),
+    ],
   );
 
   static const DeliveryRules deliveryRules = DeliveryRules(
@@ -52,11 +59,6 @@ class LakfaSeedData {
         '🥥 Natural Lakshadweep Coconut Vinegar',
         '🚫 No artificial colors or flavor enhancers',
       ],
-      posterCaption:
-          'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
-          'ലക്ഷദ്വീപിന്റെ തനത് രുചിക്കൂട്ടിൽ തയ്യാറാക്കിയ *Lakfa Tuna Pickle* ഇന്ന് തന്നെ പരീക്ഷിക്കൂ.\n'
-          '📍 ചെത്‌ലത്ത് ദ്വീപിൽ നിർമ്മിച്ചത്\n'
-          '🚚 ഇന്ത്യയിലുടനീളം ഡെലിവറി ലഭ്യമാണ്.',
     ),
   ];
 
@@ -64,113 +66,170 @@ class LakfaSeedData {
     const TemplateModel(
       id: '01_welcome',
       order: 1,
-      title: '1. Welcome',
+      title: 'Welcome & Brand Intro',
       stage: 'welcome',
-      body: '👋 നമസ്കാരം! *{{brand_name}}*-ലേക്ക് ഹൃദയം നിറഞ്ഞ സ്വാഗതം. 😊❤️\n\n'
+      bodyMl: '👋 നമസ്കാരം! *{{brand_name}}*-ലേക്ക് ഹൃദയം നിറഞ്ഞ സ്വാഗതം. 😊❤️\n\n'
           'ലക്ഷദ്വീപിന്റെ തനത് രുചികൾ എല്ലാവരിലേക്കും എത്തിക്കുക എന്ന ലക്ഷ്യത്തോടെ ആരംഭിച്ച ഒരു സ്റ്റാർട്ടപ്പ് ബ്രാൻഡാണ് ഞങ്ങൾ.\n\n'
-          'ലക്ഷദ്വീപിലെ തെളിഞ്ഞ കടലിൽ നിന്ന് നേരിട്ട് പിടിക്കുന്ന മികച്ച ട്യൂണ മത്സ്യം മാത്രം ഉപയോഗിച്ച് തയ്യാറാക്കുന്ന ഞങ്ങളുടെ *Lakfa Tuna Pickle*-ന്റെ യഥാർത്ഥ രുചി ആസ്വദിക്കൂ. 🌊🐟\n\n'
-          'ഞങ്ങളുടെ ഉൽപ്പന്നത്തെക്കുറിച്ച് കൂടുതൽ അറിയാനോ എന്തെങ്കിലും സംശയങ്ങൾ ഉണ്ടെങ്കിലോ ചോദിക്കാവുന്നതാണ്. 😊',
+          'ഞങ്ങളുടെ *{{product_name}}*-ന്റെ യഥാർത്ഥ രുചി ആസ്വദിക്കൂ. 🌊🐟\n\n'
+          'കൂടുതൽ അറിയാനോ സംശയങ്ങൾ ഉണ്ടെങ്കിലോ ചോദിക്കാവുന്നതാണ്. 😊',
+      bodyEn: '👋 Hello! Welcome to *{{brand_name}}*. 😊❤️\n\n'
+          'We are a startup dedicated to bringing authentic Lakshadweep flavors straight to your home.\n\n'
+          'Experience the real taste of our *{{product_name}}*. 🌊🐟\n\n'
+          'Feel free to ask if you have any questions or would like to order! 😊',
+      bodyManglish: '👋 Namaskaram! *{{brand_name}}*-lekku hridayam niranja swagatham. 😊❤️\n\n'
+          'Lakshadweep-inte thanathu ruchikal ellavarilekkum ethikkuka enna lakshyathode aarambhicha startup brand aanu njangal.\n\n'
+          'Njangalude *{{product_name}}*-inte yadhartha ruchi aaswadikku. 🌊🐟\n\n'
+          'Kooduthal ariyaano samshayangal undenkilo chodikkavunnathaanu. 😊',
     ),
     const TemplateModel(
       id: '02_product_list',
       order: 2,
-      title: '2. Price List',
+      title: 'Product List & Pricing',
       stage: 'pricing',
-      body: '*{{brand_name}} - Available Packs*\n\n{{product_list}}',
+      bodyMl: '*{{brand_name}} - ലഭ്യമായ പാക്കുകൾ*\n\n{{product_list}}',
+      bodyEn: '*{{brand_name}} - Available Packs*\n\n{{product_list}}',
+      bodyManglish: '*{{brand_name}} - Labhyamaya Packukal*\n\n{{product_list}}',
     ),
     const TemplateModel(
-      id: '03_poster_standard',
+      id: '03_poster_caption',
       order: 3,
-      title: '3. Poster Caption',
+      title: 'Promotional Poster Caption',
       stage: 'poster',
-      body: 'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
-          'ലക്ഷദ്വീപിന്റെ തനത് രുചിക്കൂട്ടിൽ തയ്യാറാക്കിയ *Lakfa Tuna Pickle* ഇന്ന് തന്നെ പരീക്ഷിക്കൂ.\n'
-          '📍 ചെത്‌ലത്ത് ദ്വീപിൽ നിർമ്മിച്ചത്\n'
+      bodyMl: 'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
+          'ലക്ഷദ്വീപിന്റെ തനത് രുചിക്കൂട്ടിൽ തയ്യാറാക്കിയ *{{product_name}}* ഇന്ന് തന്നെ പരീക്ഷിക്കൂ.\n'
+          '📍 {{product_origin}}\n'
           '🚚 ഇന്ത്യയിലുടനീളം ഡെലിവറി ലഭ്യമാണ്.',
+      bodyEn: 'Authentic Lakshadweep taste, now at your home! 🌴🌊\n'
+          'Try our traditionally crafted *{{product_name}}* today.\n'
+          '📍 {{product_origin}}\n'
+          '🚚 Pan-India delivery available.',
+      bodyManglish: 'Lakshadweep-inte thanathaya ruchi ini ningalude veettilum! 🌴🌊\n'
+          'Traditional recipe-il thayyarakkiya *{{product_name}}* innu thanne try cheyyu.\n'
+          '📍 {{product_origin}}\n'
+          '🚚 India-yil udaneeelam delivery labhyamanu.',
     ),
     const TemplateModel(
-      id: '04_poster_vinegar',
+      id: '04_address_request',
       order: 4,
-      title: '4. Vinegar Poster',
-      stage: 'poster',
-      body: 'ലക്ഷദ്വീപിന്റെ തനതായ രുചി ഇനി നിങ്ങളുടെ വീട്ടിലും! 🌴🌊\n'
-          'ലക്ഷദ്വീപ് തേങ്ങാ സുർക്കയുടെ (Coconut Vinegar) പെരുമയിൽ തയ്യാറാക്കിയ *Lakfa Tuna Pickle* പരീക്ഷിക്കൂ.\n'
-          '📍 ചെത്‌ലത്ത് ദ്വീപിൽ നിർമ്മിച്ചത്\n'
-          '🚚 ഇന്ത്യയിലുടനീളം ഡെലിവറി ലഭ്യമാണ്.',
-    ),
-    const TemplateModel(
-      id: '05_address_request',
-      order: 5,
-      title: '5. Address Request',
+      title: 'Order Address Collection',
       stage: 'address',
-      body: '*ഓർഡർ ചെയ്യുന്നതിനായി ദയവായി താഴെ പറയുന്ന വിവരങ്ങൾ അയച്ചുതരുക:*\n\n'
+      bodyMl: '*ഓർഡർ ചെയ്യുന്നതിനായി ദയവായി താഴെ പറയുന്ന വിവരങ്ങൾ അയച്ചുതരുക:*\n\n'
           '1. Full Name\n'
           '2. Contact Number\n'
           '3. Full Delivery Address with Pincode\n\n'
           'സാധാരണയായി 2-5 Working Days-നുള്ളിൽ ഡെലിവറി ലഭിക്കുന്നതാണ്.\n'
           'പേയ്മെന്റ് ചെയ്യുന്നതിനുള്ള QR Code കൺഫോം ചെയ്ത ശേഷം അയച്ചുതരുന്നതാണ്.',
+      bodyEn: '*To place your order, please share the following details:*\n\n'
+          '1. Full Name\n'
+          '2. Contact Number\n'
+          '3. Full Delivery Address with Pincode\n\n'
+          'Standard delivery takes 2-5 working days.\n'
+          'We will share the payment QR code once your details are confirmed.',
+      bodyManglish: '*Order cheyyan dayavayi thazhe parayunna details ayachutharuka:*\n\n'
+          '1. Full Name\n'
+          '2. Contact Number\n'
+          '3. Full Delivery Address with Pincode\n\n'
+          'Saadharanayayi 2-5 Working Days-nullil delivery labhikkum.\n'
+          'Confirm cheytha shesham payment QR Code ayachutharunnathaanu.',
     ),
     const TemplateModel(
-      id: '06_payment_details',
-      order: 6,
-      title: '6. Payment Details',
+      id: '05_payment_details',
+      order: 5,
+      title: 'Payment Details & Total',
       stage: 'payment',
-      body: '*Payment Details*\n\n'
+      bodyMl: '*Payment Details*\n\n'
           'മുകളിൽ നൽകിയിരിക്കുന്ന {{payment_bank}} സ്കാൻ ചെയ്ത് പേയ്മെന്റ് ചെയ്യുക.\n\n'
           '*ആകെ അടയ്ക്കേണ്ട തുക:*\n'
           '• Product Price: {{subtotal}}\n'
           '• Delivery Charge: {{delivery_charge}}\n'
           '• *Total Amount: {{total_amount}}*\n\n'
-          'പേയ്മെന്റ് വിജയകരമായി പൂർത്തിയാക്കിയ ശേഷം ദയവായി Payment Screenshot ഈ ചാറ്റിൽ അയച്ചുതരുക.\n\n'
-          'നന്ദി.\n\n'
-          '*{{brand_name}}*\n'
-          '`{{tagline}}`',
+          'പേയ്മെന്റ് പൂർത്തിയാക്കിയ ശേഷം Payment Screenshot ഈ ചാറ്റിൽ അയച്ചുതരുക. നന്ദി.\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyEn: '*Payment Details*\n\n'
+          'Please scan the {{payment_bank}} shared above to complete your payment.\n\n'
+          '*Amount Breakdown:*\n'
+          '• Product Price: {{subtotal}}\n'
+          '• Delivery Charge: {{delivery_charge}}\n'
+          '• *Total Amount: {{total_amount}}*\n\n'
+          'Please share the payment screenshot in this chat after paying. Thank you!\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyManglish: '*Payment Details*\n\n'
+          'Mukalil nalkiyirikkunna {{payment_bank}} scan cheythu payment cheyyuka.\n\n'
+          '*Total Amount:*\n'
+          '• Product Price: {{subtotal}}\n'
+          '• Delivery Charge: {{delivery_charge}}\n'
+          '• *Total Amount: {{total_amount}}*\n\n'
+          'Payment kazhinjal dayavayi Payment Screenshot ee chat-il ayachutharuka. Nandi!\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
     ),
     const TemplateModel(
-      id: '07_payment_confirmed',
-      order: 7,
-      title: '7. Payment Paid',
+      id: '06_payment_confirmed',
+      order: 6,
+      title: 'Payment Received Confirmation',
       stage: 'paid',
-      body: '*Payment Received* ✅\n\n'
-          'നന്ദി! താങ്കളുടെ പേയ്മെന്റ് വിജയകരമായി ലഭിച്ചിട്ടുണ്ട്. താങ്കളുടെ ഓർഡർ സ്ഥിരീകരിച്ചിരിക്കുന്നു.\n\n'
-          'ഓർഡർ പാക്ക് ചെയ്ത് {{courier_name}} വഴി ഡിസ്പാച്ച് ചെയ്ത ഉടൻ Tracking ID ഈ ചാറ്റിൽ പങ്കുവെക്കുന്നതാണ്.\n\n'
-          '{{brand_name}} തിരഞ്ഞെടുത്തതിന് ഹൃദയം നിറഞ്ഞ നന്ദി.\n\n'
-          '*{{brand_name}}*\n'
-          '`{{tagline}}`',
+      bodyMl: '*Payment Received* ✅\n\n'
+          'നന്ദി! താങ്കളുടെ പേയ്മെന്റ് ലഭിച്ചിട്ടുണ്ട്. ഓർഡർ സ്ഥിരീകരിച്ചിരിക്കുന്നു.\n\n'
+          '{{courier_name}} വഴി ഡിസ്പാച്ച് ചെയ്ത ഉടൻ Tracking ID ഈ ചാറ്റിൽ പങ്കുവെക്കുന്നതാണ്.\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyEn: '*Payment Received* ✅\n\n'
+          'Thank you! We have received your payment and your order is confirmed.\n\n'
+          'We will share your {{courier_name}} Tracking ID here as soon as your parcel is dispatched.\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyManglish: '*Payment Received* ✅\n\n'
+          'Nandi! Thankalude payment labhichittundu. Order confirm aayittundu.\n\n'
+          '{{courier_name}} vazhi dispatch cheytha udan Tracking ID ee chat-il share cheyyam.\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
     ),
     const TemplateModel(
-      id: '08_dispatched',
-      order: 8,
-      title: '8. Dispatched',
+      id: '07_dispatched',
+      order: 7,
+      title: 'Order Dispatched & Tracking',
       stage: 'dispatched',
-      body: '*Order Dispatched Successfully!* ✅\n\n'
+      bodyMl: '*Order Dispatched Successfully!* ✅\n\n'
           'നമസ്കാരം! താങ്കളുടെ *{{pack_summary}}* വിജയകരമായി *{{courier_name}}* വഴി ഡിസ്പാച്ച് ചെയ്തിരിക്കുന്നു.\n\n'
           '*Tracking ID:* {{tracking_id}}\n\n'
-          'താങ്കളുടെ പാർസലിന്റെ നിലവിലെ സ്റ്റാറ്റസ് താഴെ നൽകിയിരിക്കുന്ന ലിങ്കിൽ Tracking ID നൽകി പരിശോധിക്കാവുന്നതാണ്:\n'
-          '{{tracking_url}}\n\n'
-          'സാധാരണയായി 2-5 Working Days-നുള്ളിൽ ഡെലിവറി ലഭിക്കുന്നതാണ്. എന്തെങ്കിലും സഹായം ആവശ്യമുണ്ടെങ്കിൽ ഈ WhatsApp ചാറ്റിൽ തന്നെ സന്ദേശം അയക്കാവുന്നതാണ്.\n\n'
-          '{{brand_name}} തിരഞ്ഞെടുത്തതിന് ഹൃദയം നിറഞ്ഞ നന്ദി.\n\n'
-          'Website: {{website}}\n'
-          'Instagram: {{instagram_handle}}\n\n'
-          '*{{brand_name}}*\n'
-          '`{{tagline}}`',
+          'ട്രാക്ക് ചെയ്യാനുള്ള ലിങ്ക്:\n{{tracking_url}}\n\n'
+          'സാധാരണയായി 2-5 Working Days-നുള്ളിൽ ഡെലിവറി ലഭിക്കും.\n\n'
+          'Website: {{website}}\nInstagram: {{instagram_handle}}\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyEn: '*Order Dispatched Successfully!* ✅\n\n'
+          'Hello! Your *{{pack_summary}}* has been dispatched via *{{courier_name}}*.\n\n'
+          '*Tracking ID:* {{tracking_id}}\n\n'
+          'Track your shipment here:\n{{tracking_url}}\n\n'
+          'Estimated delivery: 2-5 working days.\n\n'
+          'Website: {{website}}\nInstagram: {{instagram_handle}}\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
+      bodyManglish: '*Order Dispatched Successfully!* ✅\n\n'
+          'Namaskaram! Thankalude *{{pack_summary}}* *{{courier_name}}* vazhi dispatch cheythirikkunnu.\n\n'
+          '*Tracking ID:* {{tracking_id}}\n\n'
+          'Status check cheyyan ee link upayogikkam:\n{{tracking_url}}\n\n'
+          '2-5 Working Days-nullil delivery labhikkum.\n\n'
+          'Website: {{website}}\nInstagram: {{instagram_handle}}\n\n'
+          '*{{brand_name}}*\n`{{tagline}}`',
     ),
     const TemplateModel(
-      id: '09_review_followup',
-      order: 9,
-      title: '9. Review Follow-up',
+      id: '08_review_followup',
+      order: 8,
+      title: 'Delivery Check-in & Review',
       stage: 'review',
-      body: 'നമസ്കാരം!\n\n'
+      bodyMl: 'നമസ്കാരം!\n\n'
           'താങ്കളുടെ *{{pack_summary}}* സുരക്ഷിതമായി ലഭിച്ചോ?\n\n'
-          'ഞങ്ങളുടെ ഉൽപ്പന്നത്തെക്കുറിച്ചുള്ള താങ്കളുടെ വിലപ്പെട്ട അഭിപ്രായം Google Review ആയി പങ്കുവെക്കാൻ ഒരു നിമിഷം സമയം കണ്ടെത്തുമോ? അത് ഞങ്ങൾക്ക് ഏറെ പ്രോത്സാഹനമാകും.\n\n'
-          'Google Review:\n'
-          '{{review_url}}\n\n'
-          'Instagram:\n'
-          '{{instagram_url}}\n\n'
-          'താങ്കളുടെ അഭിപ്രായം ഞങ്ങളുടെ ഉൽപ്പന്നവും സേവനവും കൂടുതൽ മെച്ചപ്പെടുത്താനും, പുതിയ ഉപഭോക്താക്കൾക്ക് വിശ്വാസം നൽകാനും ഏറെ സഹായകരമാണ്.\n\n'
-          'എന്തെങ്കിലും സഹായം ആവശ്യമുണ്ടെങ്കിൽ ഈ WhatsApp ചാറ്റിൽ തന്നെ സന്ദേശം അയക്കാവുന്നതാണ്. നന്ദി!\n\n'
-          '*{{brand_name}}*\n'
-          '`{{tagline}}`',
+          'താങ്കളുടെ വിലപ്പെട്ട അഭിപ്രായം Google Review ആയി പങ്കുവെക്കാമോ?\n\n'
+          'Google Review:\n{{review_url}}\n\n'
+          'Instagram:\n{{instagram_url}}\n\n'
+          'നന്ദി!\n*{{brand_name}}*\n`{{tagline}}`',
+      bodyEn: 'Hello!\n\n'
+          'Did you receive your *{{pack_summary}}* safely?\n\n'
+          'We would love to hear your feedback! Please take a moment to leave us a Google Review:\n\n'
+          'Google Review:\n{{review_url}}\n\n'
+          'Instagram:\n{{instagram_url}}\n\n'
+          'Thank you!\n*{{brand_name}}*\n`{{tagline}}`',
+      bodyManglish: 'Namaskaram!\n\n'
+          'Thankalude *{{pack_summary}}* safe aayi labhicho?\n\n'
+          'Thankalude vilappetta abhiprayam Google Review aayi share cheyyamo?\n\n'
+          'Google Review:\n{{review_url}}\n\n'
+          'Instagram:\n{{instagram_url}}\n\n'
+          'Nandi!\n*{{brand_name}}*\n`{{tagline}}`',
     ),
   ];
 }
