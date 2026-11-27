@@ -1,45 +1,50 @@
 import 'package:flutter/material.dart';
+import '../models/business_profile.dart';
 import '../models/product_model.dart';
 import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
+import '../services/lakfa_seed_data.dart';
 import '../services/template_engine.dart';
+import '../services/ui_helpers.dart';
+import 'bin_screen.dart';
 
 class ProductsScreen extends StatelessWidget {
   final FirestoreService service;
-  final List<ProductModel> products;
-  final AppStrings s;
+  final List<ProductModel> initialProducts;
+  final AppStrings initialStrings;
 
   const ProductsScreen({
     super.key,
     required this.service,
-    required this.products,
-    required this.s,
+    required this.initialProducts,
+    required this.initialStrings,
   });
 
-  Future<void> _confirmDelete(BuildContext context, ProductModel p) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.t('confirm_delete')),
-        content: Text(s.t('delete_product_q')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.t('cancel'))),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.t('delete')),
-          ),
-        ],
-      ),
+  Future<void> _confirmDelete(
+      BuildContext context, AppStrings s, ProductModel p) async {
+    final ok = await UiHelpers.confirmDialog(
+      context,
+      title: s.t('confirm_delete'),
+      message: s.t('delete_product_q'),
+      confirmLabel: s.t('delete'),
+      cancelLabel: s.t('cancel'),
+      isDestructive: true,
     );
-    if (ok == true) {
-      await service.deleteProduct(p.id);
+    if (!ok) return;
+    try {
+      await service.softDeleteProduct(p);
+      if (context.mounted) {
+        UiHelpers.showFeedback(context, s.t('product_moved_bin'));
+      }
+    } catch (_) {
+      if (context.mounted) {
+        UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+      }
     }
   }
 
-  Future<void> _openEditor(BuildContext context, [ProductModel? existing]) async {
+  Future<void> _openEditor(
+      BuildContext context, AppStrings s, [ProductModel? existing]) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final originCtrl = TextEditingController(text: existing?.origin ?? '');
     final highlightsCtrl =
@@ -121,10 +126,22 @@ class ProductsScreen extends StatelessWidget {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 18),
+                          icon: const Icon(Icons.delete_outline,
+                              size: 18, color: Colors.red),
                           visualDensity: VisualDensity.compact,
-                          onPressed: () =>
-                              setModalState(() => packs.removeAt(i)),
+                          onPressed: () async {
+                            final ok = await UiHelpers.confirmDialog(
+                              ctx,
+                              title: s.t('delete'),
+                              message: s.t('delete_pack_q'),
+                              confirmLabel: s.t('delete'),
+                              cancelLabel: s.t('cancel'),
+                              isDestructive: true,
+                            );
+                            if (ok) {
+                              setModalState(() => packs.removeAt(i));
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -212,6 +229,16 @@ class ProductsScreen extends StatelessWidget {
                 FilledButton(
                   onPressed: () async {
                     if (nameCtrl.text.trim().isEmpty) return;
+                    if (existing != null) {
+                      final ok = await UiHelpers.confirmDialog(
+                        ctx,
+                        title: s.t('confirm_save'),
+                        message: s.t('save_changes_q'),
+                        confirmLabel: s.t('save'),
+                        cancelLabel: s.t('cancel'),
+                      );
+                      if (!ok) return;
+                    }
                     final model = ProductModel(
                       id: existing?.id ?? '',
                       name: nameCtrl.text.trim(),
@@ -224,8 +251,18 @@ class ProductsScreen extends StatelessWidget {
                           .where((e) => e.isNotEmpty)
                           .toList(),
                     );
-                    await service.saveProduct(model);
-                    if (ctx.mounted) Navigator.pop(ctx);
+                    try {
+                      await service.saveProduct(model);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        UiHelpers.showFeedback(context, s.t('product_saved'));
+                      }
+                    } catch (_) {
+                      if (context.mounted) {
+                        UiHelpers.showFeedback(context, s.t('action_failed'),
+                            isError: true);
+                      }
+                    }
                   },
                   child: Text(s.t('save_product')),
                 ),
@@ -239,99 +276,175 @@ class ProductsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(s.t('products_title'))),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: products.isEmpty
-              ? Center(child: Text(s.t('no_products')))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                  itemCount: products.length,
-                  itemBuilder: (ctx, i) {
-                    final p = products[i];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.black12),
+    return ValueListenableBuilder<String?>(
+      valueListenable: service.languageNotifier,
+      builder: (context, langOverride, _) {
+        return StreamBuilder<BusinessProfile>(
+          stream: service.watchBusinessProfile(),
+          builder: (context, profSnap) {
+            final profile = profSnap.data ?? LakfaSeedData.profile;
+            final s = AppStrings(
+                langOverride ?? profSnap.data?.appLanguage ?? initialStrings.lang);
+            final primary =
+                Color(service.colorNotifier.value ?? profile.primaryColorHex);
+
+            return StreamBuilder<List<ProductModel>>(
+              stream: service.watchProducts(),
+              initialData: initialProducts,
+              builder: (context, prodSnap) {
+                final products = prodSnap.data ?? [];
+
+                return Scaffold(
+                  appBar: AppBar(
+                    title: Text(s.t('products_title')),
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    actions: [
+                      IconButton(
+                        tooltip: s.t('bin_title'),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BinScreen(service: service),
+                            ),
+                          );
+                        },
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(p.name,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14)),
-                                    if (p.origin.isNotEmpty)
-                                      Text(p.origin,
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade600)),
-                                  ],
-                                ),
-                              ),
-                              Switch(
-                                value: p.active,
-                                onChanged: (v) =>
-                                    service.toggleProductActive(p.id, v),
-                              ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit_outlined, size: 18),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () => _openEditor(context, p),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 18, color: Colors.red),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () => _confirmDelete(context, p),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: p.packs
-                                .map((pk) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F4),
-                                        borderRadius: BorderRadius.circular(8),
+                    ],
+                  ),
+                  body: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: products.isEmpty
+                          ? Center(child: Text(s.t('no_products')))
+                          : ListView.builder(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 12, 12, 80),
+                              itemCount: products.length,
+                              itemBuilder: (ctx, i) {
+                                final p = products[i];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.black12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(p.name,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        fontSize: 14)),
+                                                if (p.origin.isNotEmpty)
+                                                  Text(p.origin,
+                                                      style: TextStyle(
+                                                          fontSize: 11,
+                                                          color: Colors
+                                                              .grey.shade600)),
+                                              ],
+                                            ),
+                                          ),
+                                          Switch(
+                                            value: p.active,
+                                            onChanged: (v) async {
+                                              try {
+                                                await service
+                                                    .toggleProductActive(p, v);
+                                                if (context.mounted) {
+                                                  UiHelpers.showFeedback(
+                                                      context,
+                                                      s.t('product_saved'));
+                                                }
+                                              } catch (_) {
+                                                if (context.mounted) {
+                                                  UiHelpers.showFeedback(
+                                                      context,
+                                                      s.t('action_failed'),
+                                                      isError: true);
+                                                }
+                                              }
+                                            },
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 18),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            onPressed: () =>
+                                                _openEditor(context, s, p),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Colors.red),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            onPressed: () =>
+                                                _confirmDelete(context, s, p),
+                                          ),
+                                        ],
                                       ),
-                                      child: Text(
-                                        '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600),
+                                      const SizedBox(height: 6),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: p.packs
+                                            .map((pk) => Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        const Color(0xFFF1F5F4),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Text(
+                                                    '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
+                                                    style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600),
+                                                  ),
+                                                ))
+                                            .toList(),
                                       ),
-                                    ))
-                                .toList(),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context),
-        icon: const Icon(Icons.add),
-        label: Text(s.t('add_product')),
-      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  floatingActionButton: FloatingActionButton.extended(
+                    onPressed: () => _openEditor(context, s),
+                    icon: const Icon(Icons.add),
+                    label: Text(s.t('add_product')),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -13,6 +13,8 @@ class DashboardScreen extends StatefulWidget {
   final AppStrings s;
   final void Function(int tabIndex) onNavigateTab;
   final VoidCallback onOpenProducts;
+  final VoidCallback onOpenCustomers;
+  final VoidCallback onOpenBin;
   final VoidCallback onOpenSettings;
 
   const DashboardScreen({
@@ -22,6 +24,8 @@ class DashboardScreen extends StatefulWidget {
     required this.s,
     required this.onNavigateTab,
     required this.onOpenProducts,
+    required this.onOpenCustomers,
+    required this.onOpenBin,
     required this.onOpenSettings,
   });
 
@@ -82,7 +86,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [primary, primary.withOpacity(0.84)],
+              colors: [primary, primary.withValues(alpha: 0.84)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -225,7 +229,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: primary.withOpacity(0.1),
+                                color: primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(o.status,
@@ -278,7 +282,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: Icons.receipt_long_rounded,
               color: Colors.blue.shade700,
               title: s.t('tile_orders'),
-              subtitle: '$toDispatch ${s.t("to_dispatch")} • $reviewDue ${s.t("review_due")}',
+              subtitle:
+                  '$toDispatch ${s.t("to_dispatch")} • $reviewDue ${s.t("review_due")}',
               onTap: () => widget.onNavigateTab(3),
             ),
             _ModuleTile(
@@ -287,6 +292,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               title: s.t('tile_products'),
               subtitle: s.t('tile_products_sub'),
               onTap: widget.onOpenProducts,
+            ),
+            _ModuleTile(
+              icon: Icons.people_alt_rounded,
+              color: Colors.indigo.shade700,
+              title: s.t('tile_customers'),
+              subtitle: s.t('tile_customers_sub'),
+              onTap: widget.onOpenCustomers,
+            ),
+            _ModuleTile(
+              icon: Icons.delete_sweep_rounded,
+              color: Colors.red.shade700,
+              title: s.t('tile_bin'),
+              subtitle: s.t('tile_bin_sub'),
+              onTap: widget.onOpenBin,
             ),
             _ModuleTile(
               icon: Icons.storefront_rounded,
@@ -403,7 +422,7 @@ class _MiniBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -447,7 +466,7 @@ class _ModuleTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 20, color: color),

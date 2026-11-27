@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/business_profile.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
@@ -7,7 +6,9 @@ import '../models/template_model.dart';
 import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
 import '../services/template_engine.dart';
+import '../services/ui_helpers.dart';
 import '../services/whatsapp_service.dart';
+import 'bin_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final FirestoreService service;
@@ -32,363 +33,570 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
-  String _filter = 'All';
-  String _query = '';
-  String _replyLang = 'ml';
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Paid':
-        return Colors.green.shade700;
-      case 'Dispatched':
-        return Colors.blue.shade700;
-      case 'Delivered':
-      case 'Review Sent':
-        return Colors.teal.shade700;
-      case 'Payment Pending':
-        return Colors.orange.shade800;
-      default:
-        return Colors.blueGrey.shade700;
-    }
-  }
-
-  TemplateModel? _findTemplate(String stage) {
-    try {
-      return widget.templates.firstWhere((t) => t.stage == stage);
-    } catch (_) {
-      return widget.templates.isNotEmpty ? widget.templates.first : null;
-    }
-  }
-
-  Future<void> _sendStageReply(OrderModel order, String stage,
-      {String? trackingOverride}) async {
-    final tpl = _findTemplate(stage);
-    if (tpl == null) return;
-    final msg = TemplateEngine.render(
-      templateBody: tpl.bodyForLang(_replyLang),
-      profile: widget.profile,
-      products: widget.products,
-      subtotal: order.subtotal,
-      deliveryCharge: order.deliveryCharge,
-      totalAmount: order.totalAmount,
-      packSummary: order.itemsSummary,
-      trackingId: trackingOverride ?? order.trackingId,
-    );
-    await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
-  }
-
-  Future<void> _dispatchDialog(OrderModel order) async {
-    final s = widget.s;
-    final ctrl = TextEditingController(text: order.trackingId);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.t('dispatch_order')),
-        content: TextField(
-          controller: ctrl,
-          decoration: InputDecoration(
-            labelText: s.t('tracking_id'),
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(s.t('cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: Text(s.t('save_and_whatsapp')),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      await widget.service.updateOrderStatus(
-        orderId: order.id,
-        status: 'Dispatched',
-        trackingId: result,
-      );
-      await _sendStageReply(order, 'dispatched', trackingOverride: result);
-    }
-  }
-
-  Future<void> _confirmDelete(OrderModel order) async {
-    final s = widget.s;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(s.t('confirm_delete')),
-        content: Text(s.t('delete_order_q')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(s.t('cancel'))),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(s.t('delete')),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await widget.service.deleteOrder(order.id);
-    }
-  }
+  String _filterStatus = ''; // '' = All
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
 
   @override
-  Widget build(BuildContext context) {
-    final s = widget.s;
-    final q = _query.trim().toLowerCase();
-    final filtered = widget.orders.where((o) {
-      final matchesFilter = _filter == 'All'
-          ? true
-          : (_filter == 'Review Due' ? o.isReviewDue : o.status == _filter);
-      if (!matchesFilter) return false;
-      if (q.isEmpty) return true;
-      return o.customerName.toLowerCase().contains(q) ||
-          o.phone.toLowerCase().contains(q) ||
-          o.trackingId.toLowerCase().contains(q);
-    }).toList();
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: (v) => setState(() => _query = v),
+  Future<void> _openStatusDialog(OrderModel order) async {
+    final s = widget.s;
+    String selectedStatus = order.status;
+    final trackingCtrl = TextEditingController(text: order.trackingId);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(s.t('change_status_title'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: OrderModel.statuses.contains(selectedStatus)
+                      ? selectedStatus
+                      : OrderModel.statuses.first,
+                  isDense: true,
                   decoration: InputDecoration(
-                    hintText: s.t('search_orders'),
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    isDense: true,
-                    filled: true,
-                    fillColor: Colors.white,
+                    labelText: s.t('update_status'),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Colors.black12),
-                    ),
+                        borderRadius: BorderRadius.circular(10)),
                   ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              PopupMenuButton<String>(
-                initialValue: _replyLang,
-                onSelected: (v) => setState(() => _replyLang = v),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.black26),
-                  ),
-                  child: Text(
-                    _replyLang == 'en'
-                        ? 'EN'
-                        : (_replyLang == 'manglish' ? 'MG' : 'മ'),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 12),
-                  ),
-                ),
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'ml', child: Text(s.t('lang_ml'))),
-                  PopupMenuItem(value: 'en', child: Text(s.t('lang_en'))),
-                  PopupMenuItem(
-                      value: 'manglish', child: Text(s.t('lang_manglish'))),
-                ],
-              ),
-            ],
-          ),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(
-            children: ['All', 'Review Due', ...OrderModel.statuses].map((st) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ChoiceChip(
-                  label: Text(st, style: const TextStyle(fontSize: 11)),
-                  visualDensity: VisualDensity.compact,
-                  selected: _filter == st,
-                  onSelected: (_) => setState(() => _filter = st),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text(s.t('no_orders_yet'),
-                      style: TextStyle(color: Colors.grey.shade600)))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                  itemCount: filtered.length,
-                  itemBuilder: (ctx, i) {
-                    final o = filtered[i];
-                    final badgeColor = _statusColor(o.status);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '${o.customerName} • ${o.phone}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: badgeColor.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  o.status,
-                                  style: TextStyle(
-                                      color: badgeColor,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          if (o.itemsSummary.isNotEmpty)
-                            Text(o.itemsSummary,
-                                style: const TextStyle(fontSize: 12)),
-                          Text(
-                            '${TemplateEngine.formatMoney(o.totalAmount)}  •  ${DateFormat('dd MMM, hh:mm a').format(o.createdAt)}',
-                            style: TextStyle(
-                                color: Colors.grey.shade600, fontSize: 11),
-                          ),
-                          if (o.trackingId.isNotEmpty)
-                            Text('Tracking: ${o.trackingId}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 11)),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              _ActionPill(
-                                label: s.t('send_payment'),
-                                icon: Icons.qr_code_2,
-                                onTap: () => _sendStageReply(o, 'payment'),
-                              ),
-                              _ActionPill(
-                                label: s.t('mark_paid'),
-                                icon: Icons.check_circle_outline,
-                                onTap: () async {
-                                  await widget.service.updateOrderStatus(
-                                      orderId: o.id, status: 'Paid');
-                                  await _sendStageReply(o, 'paid');
-                                },
-                              ),
-                              _ActionPill(
-                                label: s.t('dispatch'),
-                                icon: Icons.local_shipping_outlined,
-                                highlighted: true,
-                                onTap: () => _dispatchDialog(o),
-                              ),
-                              _ActionPill(
-                                label: s.t('send_review'),
-                                icon: Icons.star_outline,
-                                onTap: () async {
-                                  await widget.service.updateOrderStatus(
-                                    orderId: o.id,
-                                    status: 'Review Sent',
-                                    reviewSent: true,
-                                  );
-                                  await _sendStageReply(o, 'review');
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.call_outlined, size: 17),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () =>
-                                    WhatsAppService.callPhone(o.phone),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 17, color: Colors.red),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () => _confirmDelete(o),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
+                  items: OrderModel.statuses
+                      .map((st) => DropdownMenuItem(value: st, child: Text(st)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() => selectedStatus = v);
+                    }
                   },
                 ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionPill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool highlighted;
-
-  const _ActionPill({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.highlighted = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-        decoration: BoxDecoration(
-          color: highlighted ? cs.primary : const Color(0xFFF1F5F4),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 13, color: highlighted ? Colors.white : cs.onSurface),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: highlighted ? Colors.white : cs.onSurface,
-              ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: trackingCtrl,
+                  decoration: InputDecoration(
+                    labelText: s.t('tracking_id'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  s.t('change_status_q'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(s.t('confirm')),
             ),
           ],
         ),
       ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await widget.service.updateOrderStatus(
+          orderId: order.id,
+          status: selectedStatus,
+          trackingId: trackingCtrl.text.trim(),
+        );
+        if (mounted) {
+          UiHelpers.showFeedback(context, s.t('status_updated'));
+        }
+      } catch (_) {
+        if (mounted) {
+          UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+        }
+      }
+    }
+  }
+
+  Future<void> _openEditOrderSheet(OrderModel order) async {
+    final s = widget.s;
+    final nameCtrl = TextEditingController(text: order.customerName);
+    final phoneCtrl = TextEditingController(text: order.phone);
+    final addrCtrl = TextEditingController(text: order.address);
+    final trackCtrl = TextEditingController(text: order.trackingId);
+    final notesCtrl = TextEditingController(text: order.notes);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                s.t('edit_order'),
+                style:
+                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.t('customer_name'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: s.t('whatsapp_number'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: addrCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: s.t('delivery_address'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: trackCtrl,
+                decoration: InputDecoration(
+                  labelText: s.t('tracking_id'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: notesCtrl,
+                decoration: InputDecoration(
+                  labelText: s.t('notes'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              FilledButton(
+                onPressed: () async {
+                  final ok = await UiHelpers.confirmDialog(
+                    ctx,
+                    title: s.t('confirm_save'),
+                    message: s.t('save_changes_q'),
+                    confirmLabel: s.t('save'),
+                    cancelLabel: s.t('cancel'),
+                  );
+                  if (!ok) return;
+                  try {
+                    await widget.service.saveOrder(order.copyWith(
+                      customerName: nameCtrl.text.trim().isEmpty
+                          ? order.customerName
+                          : nameCtrl.text.trim(),
+                      phone: phoneCtrl.text.trim(),
+                      address: addrCtrl.text.trim(),
+                      trackingId: trackCtrl.text.trim(),
+                      notes: notesCtrl.text.trim(),
+                    ));
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) {
+                      UiHelpers.showFeedback(context, s.t('order_updated'));
+                    }
+                  } catch (_) {
+                    if (mounted) {
+                      UiHelpers.showFeedback(context, s.t('action_failed'),
+                          isError: true);
+                    }
+                  }
+                },
+                child: Text(s.t('save')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.s;
+    final primary = Color(widget.profile.primaryColorHex);
+
+    final filteredOrders = widget.orders.where((o) {
+      if (_filterStatus.isNotEmpty && o.status != _filterStatus) {
+        return false;
+      }
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        final matchName = o.customerName.toLowerCase().contains(q);
+        final matchPhone = o.phone.contains(q);
+        final matchId = o.id.toLowerCase().contains(q);
+        final matchTrack = o.trackingId.toLowerCase().contains(q);
+        if (!matchName && !matchPhone && !matchId && !matchTrack) return false;
+      }
+      return true;
+    }).toList();
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            color: Colors.white,
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchCtrl,
+                        onChanged: (v) =>
+                            setState(() => _searchQuery = v.trim()),
+                        decoration: InputDecoration(
+                          hintText: s.t('search_orders_hint'),
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
+                                )
+                              : null,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.outlined(
+                      tooltip: s.t('bin_title'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BinScreen(service: widget.service),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.delete_outline_rounded, size: 19),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _filterChip('', s.t('all')),
+                      const SizedBox(width: 6),
+                      for (final st in OrderModel.statuses)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _filterChip(st, st),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: filteredOrders.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long_outlined,
+                            size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 10),
+                        Text(
+                          s.t('no_orders_found'),
+                          style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (ctx, i) {
+                      final order = filteredOrders[i];
+                      Color statusColor = Colors.orange;
+                      if (order.status == 'Paid') statusColor = Colors.blue;
+                      if (order.status == 'Delivered') {
+                        statusColor = Colors.green;
+                      }
+                      if (order.status == 'Dispatched') {
+                        statusColor = Colors.purple;
+                      }
+                      if (order.status == 'Review Sent') {
+                        statusColor = Colors.teal;
+                      }
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 2),
+                          childrenPadding:
+                              const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          leading: CircleAvatar(
+                            backgroundColor: primary.withValues(alpha: 0.12),
+                            child: Text(
+                              order.customerName.isNotEmpty
+                                  ? order.customerName[0].toUpperCase()
+                                  : 'C',
+                              style: TextStyle(
+                                  color: primary, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          title: Text(
+                            order.customerName,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13.5),
+                          ),
+                          subtitle: Text(
+                            '${order.phone} • ₹${order.totalAmount.toStringAsFixed(0)}',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade700),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              order.status.toUpperCase(),
+                              style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          children: [
+                            const Divider(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                    '${s.t('date')}: ${order.createdAt.toLocal().toString().substring(0, 16)}',
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
+                                if (order.trackingId.isNotEmpty)
+                                  Text('Track: ${order.trackingId}',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ...order.items.map((item) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 2),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                          '${item.productName} (${item.packLabel}) x${item.quantity}',
+                                          style:
+                                              const TextStyle(fontSize: 12)),
+                                      Text(
+                                          '₹${item.lineSubtotal.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                )),
+                            if (order.address.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('Address: ${order.address}',
+                                    style: const TextStyle(fontSize: 11.5)),
+                              ),
+                            ],
+                            if (order.notes.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text('${s.t('notes')}: ${order.notes}',
+                                    style: const TextStyle(fontSize: 11.5)),
+                              ),
+                            ],
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () => _openStatusDialog(order),
+                                    icon:
+                                        const Icon(Icons.swap_horiz, size: 14),
+                                    label: Text(s.t('update_status'),
+                                        style: const TextStyle(fontSize: 11)),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: const Color(0xFF16A34A),
+                                      foregroundColor: Colors.white,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () {
+                                      final tpl = widget.templates.isNotEmpty
+                                          ? widget.templates.first
+                                          : null;
+                                      final body = tpl != null
+                                          ? tpl.bodyMl
+                                          : 'Order Update';
+                                      final msg = TemplateEngine.render(
+                                        templateBody: body,
+                                        profile: widget.profile,
+                                        products: widget.products,
+                                        subtotal: order.subtotal,
+                                        deliveryCharge: order.deliveryCharge,
+                                        totalAmount: order.totalAmount,
+                                        packSummary: order.itemsSummary,
+                                        trackingId: order.trackingId,
+                                      );
+                                      WhatsAppService.openDirectChat(
+                                          phone: order.phone, message: msg);
+                                    },
+                                    icon: const Icon(Icons.send_rounded,
+                                        size: 14),
+                                    label: Text(s.t('send_whatsapp'),
+                                        style: const TextStyle(fontSize: 11)),
+                                  ),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: s.t('edit'),
+                                  onPressed: () => _openEditOrderSheet(order),
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 17),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: s.t('delete'),
+                                  onPressed: () async {
+                                    final confirm =
+                                        await UiHelpers.confirmDialog(
+                                      context,
+                                      title: s.t('confirm_delete'),
+                                      message: s.t('delete_order_q'),
+                                      confirmLabel: s.t('delete'),
+                                      cancelLabel: s.t('cancel'),
+                                      isDestructive: true,
+                                    );
+                                    if (!confirm) return;
+                                    try {
+                                      await widget.service
+                                          .softDeleteOrder(order.id);
+                                      if (context.mounted) {
+                                        UiHelpers.showFeedback(
+                                            context, s.t('order_moved_bin'));
+                                      }
+                                    } catch (_) {
+                                      if (context.mounted) {
+                                        UiHelpers.showFeedback(
+                                            context, s.t('action_failed'),
+                                            isError: true);
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 17, color: Colors.red),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String status, String label) {
+    final selected = _filterStatus == status;
+    return ChoiceChip(
+      label: Text(label,
+          style: TextStyle(
+              fontSize: 11, color: selected ? Colors.white : Colors.black87)),
+      selected: selected,
+      selectedColor: Color(widget.profile.primaryColorHex),
+      backgroundColor: Colors.grey.shade200,
+      onSelected: (bool val) {
+        setState(() => _filterStatus = val ? status : '');
+      },
+      visualDensity: VisualDensity.compact,
     );
   }
 }

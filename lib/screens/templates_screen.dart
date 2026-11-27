@@ -5,6 +5,7 @@ import '../models/template_model.dart';
 import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
 import '../services/template_engine.dart';
+import '../services/ui_helpers.dart';
 import '../services/whatsapp_service.dart';
 
 class TemplatesScreen extends StatefulWidget {
@@ -32,6 +33,12 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   String _selectedProductId = ''; // empty = All Products
   final Map<String, String> _cardLang = {}; // tplId -> 'ml' | 'en' | 'manglish'
 
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _openEditor([TemplateModel? existing]) async {
     final s = widget.s;
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
@@ -39,7 +46,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     final enCtrl = TextEditingController(text: existing?.bodyEn ?? '');
     final manglishCtrl =
         TextEditingController(text: existing?.bodyManglish ?? '');
-    String targetProductId = existing?.productId ?? _selectedProductId;
+    String targetProductId = widget.products.any((p) => p.id == (existing?.productId ?? _selectedProductId))
+        ? (existing?.productId ?? _selectedProductId)
+        : '';
     int activeLangTab = 0; // 0=ML, 1=EN, 2=Manglish
 
     final vars = TemplateEngine.allAvailableVariables(widget.profile);
@@ -87,7 +96,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: targetProductId,
+                    initialValue: targetProductId,
                     isDense: true,
                     decoration: InputDecoration(
                       labelText: s.t('active_product'),
@@ -156,8 +165,29 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                       if (existing != null)
                         TextButton(
                           onPressed: () async {
-                            await widget.service.deleteTemplate(existing.id);
-                            if (ctx.mounted) Navigator.pop(ctx);
+                            final ok = await UiHelpers.confirmDialog(
+                              ctx,
+                              title: s.t('confirm_delete'),
+                              message: s.t('delete_template_q'),
+                              confirmLabel: s.t('delete'),
+                              cancelLabel: s.t('cancel'),
+                              isDestructive: true,
+                            );
+                            if (!ok) return;
+                            try {
+                              await widget.service.softDeleteTemplate(existing);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                UiHelpers.showFeedback(
+                                    context, s.t('template_moved_bin'));
+                              }
+                            } catch (_) {
+                              if (mounted) {
+                                UiHelpers.showFeedback(
+                                    context, s.t('action_failed'),
+                                    isError: true);
+                              }
+                            }
                           },
                           child: Text(s.t('delete'),
                               style: const TextStyle(color: Colors.red)),
@@ -166,18 +196,40 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                       FilledButton(
                         onPressed: () async {
                           if (titleCtrl.text.trim().isEmpty) return;
-                          await widget.service.saveTemplate(TemplateModel(
-                            id: existing?.id ?? '',
-                            order: existing?.order ??
-                                (widget.templates.length + 1),
-                            title: titleCtrl.text.trim(),
-                            stage: existing?.stage ?? 'custom',
-                            bodyMl: mlCtrl.text,
-                            bodyEn: enCtrl.text,
-                            bodyManglish: manglishCtrl.text,
-                            productId: targetProductId,
-                          ));
-                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (existing != null) {
+                            final ok = await UiHelpers.confirmDialog(
+                              ctx,
+                              title: s.t('confirm_save'),
+                              message: s.t('save_changes_q'),
+                              confirmLabel: s.t('save'),
+                              cancelLabel: s.t('cancel'),
+                            );
+                            if (!ok) return;
+                          }
+                          try {
+                            await widget.service.saveTemplate(TemplateModel(
+                              id: existing?.id ?? '',
+                              order: existing?.order ??
+                                  (widget.templates.length + 1),
+                              title: titleCtrl.text.trim(),
+                              stage: existing?.stage ?? 'custom',
+                              bodyMl: mlCtrl.text,
+                              bodyEn: enCtrl.text,
+                              bodyManglish: manglishCtrl.text,
+                              productId: targetProductId,
+                            ));
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('template_saved'));
+                            }
+                          } catch (_) {
+                            if (mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('action_failed'),
+                                  isError: true);
+                            }
+                          }
                         },
                         child: Text(s.t('save')),
                       ),
@@ -196,25 +248,28 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   Widget build(BuildContext context) {
     final s = widget.s;
     final primary = Color(widget.profile.primaryColorHex);
-    final selectedProduct = _selectedProductId.isEmpty
+    final activeProducts = widget.products.where((p) => p.active).toList();
+    final safeSelectedId = activeProducts.any((p) => p.id == _selectedProductId)
+        ? _selectedProductId
+        : '';
+
+    final selectedProduct = safeSelectedId.isEmpty
         ? null
-        : widget.products.cast<ProductModel?>().firstWhere(
-              (p) => p?.id == _selectedProductId,
+        : activeProducts.cast<ProductModel?>().firstWhere(
+              (p) => p?.id == safeSelectedId,
               orElse: () => null,
             );
 
-    // Show global templates + templates linked to selected product
     final visibleTemplates = widget.templates.where((t) {
       if (t.productId.isEmpty) return true;
-      if (_selectedProductId.isEmpty) return true;
-      return t.productId == _selectedProductId;
+      if (safeSelectedId.isEmpty) return true;
+      return t.productId == safeSelectedId;
     }).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Column(
         children: [
-          // Compact Top Bar: Phone + Product Switcher
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
             color: Colors.white,
@@ -237,18 +292,19 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _selectedProductId,
+                  initialValue: safeSelectedId,
                   isDense: true,
                   decoration: InputDecoration(
                     labelText: s.t('active_product'),
-                    prefixIcon: const Icon(Icons.inventory_2_outlined, size: 18),
+                    prefixIcon:
+                        const Icon(Icons.inventory_2_outlined, size: 18),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
                   items: [
                     DropdownMenuItem(
                         value: '', child: Text(s.t('all_products'))),
-                    ...widget.products.where((p) => p.active).map((p) =>
+                    ...activeProducts.map((p) =>
                         DropdownMenuItem(value: p.id, child: Text(p.name))),
                   ],
                   onChanged: (v) =>
@@ -258,7 +314,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             ),
           ),
           const Divider(height: 1),
-          // Numbered Expandable Index List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 80),
@@ -266,7 +321,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
               itemBuilder: (ctx, i) {
                 final tpl = visibleTemplates[i];
                 final idxLabel = (i + 1).toString().padLeft(2, '0');
-                final lang = _cardLang[tpl.id] ?? 'ml';
+                final lang = _cardLang[tpl.id] ??
+                    (widget.profile.appLanguage == 'en' ? 'en' : 'ml');
                 final rendered = TemplateEngine.render(
                   templateBody: tpl.bodyForLang(lang),
                   profile: widget.profile,
@@ -294,7 +350,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                         height: 30,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: primary.withOpacity(0.12),
+                          color: primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -319,7 +375,6 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                             )
                           : null,
                       children: [
-                        // 3-Language Switcher (ML / EN / Manglish)
                         SizedBox(
                           width: double.infinity,
                           child: SegmentedButton<String>(
@@ -390,9 +445,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                               onPressed: () async {
                                 await WhatsAppService.copyMessage(rendered);
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(s.t('copied'))),
-                                  );
+                                  UiHelpers.showFeedback(context, s.t('copied'));
                                 }
                               },
                               icon: const Icon(Icons.copy_rounded, size: 14),

@@ -1,0 +1,7 @@
+{
+  "name": "OrderDesk",
+  "description": "OrderDesk — Smart WhatsApp Reply & Order CRM",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

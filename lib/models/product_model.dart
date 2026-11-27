@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ProductPack {
   final String label;
   final double price;
@@ -38,6 +40,8 @@ class ProductModel {
   final String posterCaptionMl;
   final String posterCaptionEn;
   final String posterCaptionManglish;
+  final bool isDeleted;
+  final DateTime? deletedAt;
 
   const ProductModel({
     required this.id,
@@ -49,12 +53,49 @@ class ProductModel {
     this.posterCaptionMl = '',
     this.posterCaptionEn = '',
     this.posterCaptionManglish = '',
+    this.isDeleted = false,
+    this.deletedAt,
   });
+
+  ProductModel copyWith({
+    String? id,
+    String? name,
+    String? origin,
+    bool? active,
+    List<ProductPack>? packs,
+    List<String>? highlights,
+    String? posterCaptionMl,
+    String? posterCaptionEn,
+    String? posterCaptionManglish,
+    bool? isDeleted,
+    DateTime? deletedAt,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      origin: origin ?? this.origin,
+      active: active ?? this.active,
+      packs: packs ?? this.packs,
+      highlights: highlights ?? this.highlights,
+      posterCaptionMl: posterCaptionMl ?? this.posterCaptionMl,
+      posterCaptionEn: posterCaptionEn ?? this.posterCaptionEn,
+      posterCaptionManglish:
+          posterCaptionManglish ?? this.posterCaptionManglish,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
 
   factory ProductModel.fromMap(String id, Map<String, dynamic> map) {
     final rawPacks = (map['packs'] as List<dynamic>? ?? []);
     final rawHighlights = (map['highlights'] as List<dynamic>? ?? []);
     final legacyCaption = (map['posterCaption'] ?? '') as String;
+    DateTime? parseOptDate(dynamic v) {
+      if (v is Timestamp) return v.toDate();
+      if (v is String) return DateTime.tryParse(v);
+      return null;
+    }
+
     return ProductModel(
       id: id,
       name: (map['name'] ?? '') as String,
@@ -67,6 +108,8 @@ class ProductModel {
       posterCaptionMl: (map['posterCaptionMl'] ?? legacyCaption) as String,
       posterCaptionEn: (map['posterCaptionEn'] ?? '') as String,
       posterCaptionManglish: (map['posterCaptionManglish'] ?? '') as String,
+      isDeleted: (map['isDeleted'] ?? false) as bool,
+      deletedAt: parseOptDate(map['deletedAt']),
     );
   }
 
@@ -79,5 +122,8 @@ class ProductModel {
         'posterCaptionMl': posterCaptionMl,
         'posterCaptionEn': posterCaptionEn,
         'posterCaptionManglish': posterCaptionManglish,
+        'isDeleted': isDeleted,
+        'deletedAt':
+            deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
       };
 }

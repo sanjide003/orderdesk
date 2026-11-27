@@ -1,0 +1,1 @@
+ /app/applet/build/web/manifest.json:  /app/applet/web/manifest.json /app/applet/web/index.html

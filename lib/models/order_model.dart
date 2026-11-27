@@ -52,9 +52,12 @@ class OrderModel {
   final double totalAmount;
   final String status;
   final String trackingId;
+  final String notes;
   final bool reviewSent;
+  final bool isDeleted;
   final DateTime createdAt;
   final DateTime? dispatchedAt;
+  final DateTime? deletedAt;
 
   static const List<String> statuses = [
     'New Inquiry',
@@ -77,9 +80,12 @@ class OrderModel {
     required this.totalAmount,
     this.status = 'New Inquiry',
     this.trackingId = '',
+    this.notes = '',
     this.reviewSent = false,
+    this.isDeleted = false,
     required this.createdAt,
     this.dispatchedAt,
+    this.deletedAt,
   });
 
   bool get isReviewDue {
@@ -95,6 +101,44 @@ class OrderModel {
 
   String get itemsSummary =>
       items.map((e) => '${e.productName} (${e.packLabel}) x${e.quantity}').join(', ');
+
+  OrderModel copyWith({
+    String? id,
+    String? customerName,
+    String? phone,
+    String? address,
+    List<OrderItem>? items,
+    double? subtotal,
+    double? deliveryCharge,
+    double? totalAmount,
+    String? status,
+    String? trackingId,
+    String? notes,
+    bool? reviewSent,
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? dispatchedAt,
+    DateTime? deletedAt,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      customerName: customerName ?? this.customerName,
+      phone: phone ?? this.phone,
+      address: address ?? this.address,
+      items: items ?? this.items,
+      subtotal: subtotal ?? this.subtotal,
+      deliveryCharge: deliveryCharge ?? this.deliveryCharge,
+      totalAmount: totalAmount ?? this.totalAmount,
+      status: status ?? this.status,
+      trackingId: trackingId ?? this.trackingId,
+      notes: notes ?? this.notes,
+      reviewSent: reviewSent ?? this.reviewSent,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
+      dispatchedAt: dispatchedAt ?? this.dispatchedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
 
   factory OrderModel.fromMap(String id, Map<String, dynamic> map) {
     final rawItems = (map['items'] as List<dynamic>? ?? []);
@@ -117,10 +161,14 @@ class OrderModel {
       totalAmount: ((map['totalAmount'] ?? 0) as num).toDouble(),
       status: (map['status'] ?? 'New Inquiry') as String,
       trackingId: (map['trackingId'] ?? '') as String,
+      notes: (map['notes'] ?? '') as String,
       reviewSent: (map['reviewSent'] ?? false) as bool,
+      isDeleted: (map['isDeleted'] ?? false) as bool,
       createdAt: parseDate(map['createdAt']),
       dispatchedAt:
           map['dispatchedAt'] != null ? parseDate(map['dispatchedAt']) : null,
+      deletedAt:
+          map['deletedAt'] != null ? parseDate(map['deletedAt']) : null,
     );
   }
 
@@ -134,9 +182,13 @@ class OrderModel {
         'totalAmount': totalAmount,
         'status': status,
         'trackingId': trackingId,
+        'notes': notes,
         'reviewSent': reviewSent,
+        'isDeleted': isDeleted,
         'createdAt': Timestamp.fromDate(createdAt),
         'dispatchedAt':
             dispatchedAt != null ? Timestamp.fromDate(dispatchedAt!) : null,
+        'deletedAt':
+            deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
       };
 }
