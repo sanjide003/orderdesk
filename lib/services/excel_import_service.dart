@@ -39,7 +39,7 @@ class ExcelImportResult {
 
 class ExcelImportService {
   static Future<ExcelImportResult?> pickAndParseFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx', 'csv'],
       withData: true,
