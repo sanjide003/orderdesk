@@ -270,48 +270,62 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
       backgroundColor: Colors.transparent,
       body: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-            color: Colors.white,
-            child: Column(
-              children: [
-                TextField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    hintText: s.t('quick_phone'),
-                    prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear, size: 16),
-                      onPressed: () => _phoneCtrl.clear(),
-                    ),
-                    isDense: true,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 760;
+              final phoneField = TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: s.t('quick_phone'),
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.clear, size: 16),
+                    onPressed: () => _phoneCtrl.clear(),
                   ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: safeSelectedId,
                   isDense: true,
-                  decoration: InputDecoration(
-                    labelText: s.t('active_product'),
-                    prefixIcon:
-                        const Icon(Icons.inventory_2_outlined, size: 18),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                        value: '', child: Text(s.t('all_products'))),
-                    ...activeProducts.map((p) =>
-                        DropdownMenuItem(value: p.id, child: Text(p.name))),
-                  ],
-                  onChanged: (v) =>
-                      setState(() => _selectedProductId = v ?? ''),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
-              ],
-            ),
+              );
+              final productField = DropdownButtonFormField<String>(
+                initialValue: safeSelectedId,
+                isDense: true,
+                decoration: InputDecoration(
+                  labelText: s.t('active_product'),
+                  prefixIcon:
+                      const Icon(Icons.inventory_2_outlined, size: 18),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                items: [
+                  DropdownMenuItem(value: '', child: Text(s.t('all_products'))),
+                  ...activeProducts.map(
+                      (p) => DropdownMenuItem(value: p.id, child: Text(p.name))),
+                ],
+                onChanged: (v) =>
+                    setState(() => _selectedProductId = v ?? ''),
+              );
+              return Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                color: Colors.white,
+                child: isWide
+                    ? Row(
+                        children: [
+                          Expanded(child: phoneField),
+                          const SizedBox(width: 12),
+                          Expanded(child: productField),
+                        ],
+                      )
+                    : Column(
+                        children: [
+                          phoneField,
+                          const SizedBox(height: 8),
+                          productField,
+                        ],
+                      ),
+              );
+            },
           ),
           const Divider(height: 1),
           Expanded(

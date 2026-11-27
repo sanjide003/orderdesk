@@ -45,7 +45,7 @@ class AppVersionService {
       final build = int.tryParse(info.buildNumber) ?? fallbackBuildNumber;
       return InstalledAppVersion(
         version: info.version.isNotEmpty ? info.version : fallbackVersion,
-        buildNumber: build,
+        buildNumber: build > 0 ? build : fallbackBuildNumber,
       );
     } catch (_) {
       return const InstalledAppVersion(
@@ -55,22 +55,49 @@ class AppVersionService {
     }
   }
 
-  static Future<AppVersionInfo?> fetchLatest() async {
-    try {
-      final uri = Uri.parse(
-          '$versionJsonUrl?t=${DateTime.now().millisecondsSinceEpoch}');
-      final resp = await http.get(uri).timeout(const Duration(seconds: 6));
-      if (resp.statusCode != 200) return null;
-      final map = jsonDecode(resp.body) as Map<String, dynamic>;
-      return AppVersionInfo(
-        version: (map['version'] ?? fallbackVersion).toString(),
-        buildNumber: ((map['buildNumber'] ?? fallbackBuildNumber) as num).toInt(),
-        apkUrl: (map['apkUrl'] ?? defaultApkUrl).toString(),
-        updatedAt: (map['updatedAt'] ?? '').toString(),
-      );
-    } catch (_) {
-      return null;
+  static bool isRemoteNewer(
+      AppVersionInfo remote, InstalledAppVersion installed) {
+    if (remote.buildNumber > installed.buildNumber) return true;
+    if (remote.buildNumber < installed.buildNumber) return false;
+    final rParts = remote.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final iParts = installed.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final len = rParts.length > iParts.length ? rParts.length : iParts.length;
+    for (int i = 0; i < len; i++) {
+      final r = i < rParts.length ? rParts[i] : 0;
+      final cur = i < iParts.length ? iParts[i] : 0;
+      if (r > cur) return true;
+      if (r < cur) return false;
     }
+    return false;
+  }
+
+  static Future<AppVersionInfo?> fetchLatest() async {
+    final candidates = <Uri>[];
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    if (kIsWeb) {
+      candidates.add(Uri.base.resolve('version.json?t=$ts'));
+    }
+    candidates.add(Uri.parse('$versionJsonUrl?t=$ts'));
+
+    for (final uri in candidates) {
+      try {
+        final resp = await http.get(uri).timeout(const Duration(seconds: 6));
+        if (resp.statusCode != 200) continue;
+        final trimmed = resp.body.trimLeft();
+        if (!trimmed.startsWith('{')) continue;
+        final map = jsonDecode(trimmed) as Map<String, dynamic>;
+        return AppVersionInfo(
+          version: (map['version'] ?? fallbackVersion).toString(),
+          buildNumber:
+              ((map['buildNumber'] ?? fallbackBuildNumber) as num).toInt(),
+          apkUrl: (map['apkUrl'] ?? defaultApkUrl).toString(),
+          updatedAt: (map['updatedAt'] ?? '').toString(),
+        );
+      } catch (_) {
+        // Try next candidate
+      }
+    }
+    return null;
   }
 
   static Future<bool> downloadApk([String? customUrl]) async {

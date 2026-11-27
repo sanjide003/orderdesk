@@ -63,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (info == null) {
         UiHelpers.showFeedback(context, widget.s.t('update_check_failed'),
             isError: true);
-      } else if (info.buildNumber > installed.buildNumber) {
+      } else if (AppVersionService.isRemoteNewer(info, installed)) {
         _openUpdateDialog(Color(widget.profile.primaryColorHex));
       } else {
         UiHelpers.showFeedback(
@@ -108,18 +108,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((o) => o.isPaidOrBeyond)
         .fold<double>(0, (sum, o) => sum + o.totalAmount);
 
-    final hasUpdate =
-        _latestInfo != null && _latestInfo!.buildNumber > _installed.buildNumber;
+    final hasUpdate = _latestInfo != null &&
+        AppVersionService.isRemoteNewer(_latestInfo!, _installed);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-      children: [
-        // 1. Compact Header + Revenue
-        Container(
-          padding: const EdgeInsets.all(14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 820;
+
+        final headerCard = Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [primary, primary.withValues(alpha: 0.84)],
+              colors: [primary, primary.withValues(alpha: 0.85)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -131,12 +131,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
                   'assets/images/app_logo.png',
-                  width: 44,
-                  height: 44,
+                  width: isWide ? 52 : 44,
+                  height: isWide ? 52 : 44,
                   fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       widget.profile.brandName,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -153,223 +153,342 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Text(
                         widget.profile.tagline,
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 11),
+                            color: Colors.white70, fontSize: 11.5),
                       ),
-                    const SizedBox(height: 8),
-                    Text(s.t('total_revenue'),
+                    if (!isWide) ...[
+                      const SizedBox(height: 8),
+                      Text(s.t('total_revenue'),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 11)),
+                      Text(
+                        TemplateEngine.formatMoney(revenue),
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 11)),
-                    Text(
-                      TemplateEngine.formatMoney(revenue),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  _MiniBadge(label: s.t('today_orders'), count: todayCount),
-                  const SizedBox(height: 6),
-                  _MiniBadge(label: s.t('pending_pay'), count: pendingPay),
-                ],
-              ),
+              if (!isWide)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _MiniBadge(label: s.t('today_orders'), count: todayCount),
+                    const SizedBox(height: 6),
+                    _MiniBadge(label: s.t('pending_pay'), count: pendingPay),
+                  ],
+                )
+              else
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: primary,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onPressed: () => widget.onNavigateTab(2),
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                  label: Text(
+                    s.t('nav_new_order'),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
             ],
           ),
-        ),
+        );
 
-        // 2. Horizontal Swipeable Recent Orders Row
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        final kpiStrip = Row(
           children: [
-            Text(s.t('recent_orders'),
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-            InkWell(
-              onTap: () => widget.onNavigateTab(3),
-              child: Text(s.t('view_all'),
-                  style: TextStyle(
-                      fontSize: 12,
-                      color: primary,
-                      fontWeight: FontWeight.w700)),
+            Expanded(
+              child: _KpiBox(
+                label: s.t('total_revenue'),
+                value: TemplateEngine.formatMoney(revenue),
+                color: primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _KpiBox(
+                label: s.t('today_orders'),
+                value: '$todayCount',
+                color: Colors.blue.shade700,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _KpiBox(
+                label: s.t('pending_pay'),
+                value: '$pendingPay',
+                color: Colors.amber.shade800,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _KpiBox(
+                label: s.t('to_dispatch'),
+                value: '$toDispatch',
+                color: Colors.green.shade700,
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        if (orders.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.black12),
-            ),
-            child: Center(
-              child: Text(s.t('no_orders_yet'),
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-            ),
-          )
-        else
-          SizedBox(
-            height: 88,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: orders.length > 10 ? 10 : orders.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (ctx, i) {
-                final o = orders[i];
-                return InkWell(
+        );
+
+        final recentOrdersSection = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(s.t('recent_orders'),
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w800)),
+                InkWell(
                   onTap: () => widget.onNavigateTab(3),
+                  child: Text(s.t('view_all'),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: primary,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (orders.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 195,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: Center(
+                  child: Text(s.t('no_orders_yet'),
+                      style:
+                          TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                ),
+              )
+            else if (isWide)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: orders.length > 6 ? 6 : orders.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (ctx, i) {
+                    final o = orders[i];
+                    return ListTile(
+                      dense: true,
+                      onTap: () => widget.onNavigateTab(3),
+                      title: Text(
+                        '${o.customerName}  ·  ${o.phone}',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        o.itemsSummary.isEmpty
+                            ? o.status
+                            : '${o.itemsSummary}  ·  ${o.status}',
+                        style: TextStyle(
+                            fontSize: 11.5, color: Colors.grey.shade700),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            TemplateEngine.formatMoney(o.totalAmount),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                              color: primary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          Text(
+                            DateFormat('dd MMM').format(o.createdAt),
+                            style: TextStyle(
+                                fontSize: 10.5, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
+              SizedBox(
+                height: 88,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: orders.length > 10 ? 10 : orders.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (ctx, i) {
+                    final o = orders[i];
+                    return InkWell(
+                      onTap: () => widget.onNavigateTab(3),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.black12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                o.customerName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              TemplateEngine.formatMoney(o.totalAmount),
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12,
-                                  color: primary),
-                            ),
-                          ],
+                      child: Container(
+                        width: 195,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12),
                         ),
-                        Text(
-                          o.itemsSummary.isEmpty ? o.phone : o.itemsSummary,
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(o.status,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    o.customerName,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  TemplateEngine.formatMoney(o.totalAmount),
                                   style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: primary)),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 12,
+                                      color: primary,
+                                      fontFeatures: const [
+                                        FontFeature.tabularFigures()
+                                      ]),
+                                ),
+                              ],
                             ),
-                            Text(DateFormat('dd MMM').format(o.createdAt),
-                                style: TextStyle(
-                                    fontSize: 10, color: Colors.grey.shade500)),
+                            Text(
+                              o.itemsSummary.isEmpty
+                                  ? o.phone
+                                  : o.itemsSummary,
+                              style: TextStyle(
+                                  fontSize: 11, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(o.status,
+                                    style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: primary)),
+                                Text(DateFormat('dd MMM').format(o.createdAt),
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade500)),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
 
-        // 3. All Workspace Modules Tile Grid
-        const SizedBox(height: 16),
-        Text(s.t('all_modules'),
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.9,
+        final modulesGrid = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ModuleTile(
-              icon: Icons.format_list_numbered_rounded,
-              color: const Color(0xFF16A34A),
-              title: s.t('tile_templates'),
-              subtitle: s.t('tile_templates_sub'),
-              onTap: () => widget.onNavigateTab(1),
-            ),
-            _ModuleTile(
-              icon: Icons.add_shopping_cart_rounded,
-              color: primary,
-              title: s.t('tile_new_order'),
-              subtitle: s.t('tile_new_order_sub'),
-              onTap: () => widget.onNavigateTab(2),
-            ),
-            _ModuleTile(
-              icon: Icons.receipt_long_rounded,
-              color: Colors.blue.shade700,
-              title: s.t('tile_orders'),
-              subtitle:
-                  '$toDispatch ${s.t("to_dispatch")} • $reviewDue ${s.t("review_due")}',
-              onTap: () => widget.onNavigateTab(3),
-            ),
-            _ModuleTile(
-              icon: Icons.inventory_2_rounded,
-              color: Colors.amber.shade800,
-              title: s.t('tile_products'),
-              subtitle: s.t('tile_products_sub'),
-              onTap: widget.onOpenProducts,
-            ),
-            _ModuleTile(
-              icon: Icons.people_alt_rounded,
-              color: Colors.indigo.shade700,
-              title: s.t('tile_customers'),
-              subtitle: s.t('tile_customers_sub'),
-              onTap: widget.onOpenCustomers,
-            ),
-            _ModuleTile(
-              icon: Icons.delete_sweep_rounded,
-              color: Colors.red.shade700,
-              title: s.t('tile_bin'),
-              subtitle: s.t('tile_bin_sub'),
-              onTap: widget.onOpenBin,
-            ),
-            _ModuleTile(
-              icon: Icons.storefront_rounded,
-              color: Colors.purple.shade700,
-              title: s.t('tile_profile'),
-              subtitle: s.t('tile_profile_sub'),
-              onTap: widget.onOpenSettings,
-            ),
-            _ModuleTile(
-              icon: Icons.tune_rounded,
-              color: Colors.blueGrey.shade700,
-              title: s.t('tile_settings'),
-              subtitle: s.t('tile_settings_sub'),
-              onTap: widget.onOpenSettings,
+            Text(s.t('all_modules'),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            GridView.count(
+              crossAxisCount: isWide ? 2 : 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: isWide ? 2.4 : 1.9,
+              children: [
+                _ModuleTile(
+                  icon: Icons.format_list_numbered_rounded,
+                  color: const Color(0xFF16A34A),
+                  title: s.t('tile_templates'),
+                  subtitle: s.t('tile_templates_sub'),
+                  onTap: () => widget.onNavigateTab(1),
+                ),
+                _ModuleTile(
+                  icon: Icons.add_shopping_cart_rounded,
+                  color: primary,
+                  title: s.t('tile_new_order'),
+                  subtitle: s.t('tile_new_order_sub'),
+                  onTap: () => widget.onNavigateTab(2),
+                ),
+                _ModuleTile(
+                  icon: Icons.receipt_long_rounded,
+                  color: Colors.blue.shade700,
+                  title: s.t('tile_orders'),
+                  subtitle:
+                      '$toDispatch ${s.t("to_dispatch")} · $reviewDue ${s.t("review_due")}',
+                  onTap: () => widget.onNavigateTab(3),
+                ),
+                _ModuleTile(
+                  icon: Icons.inventory_2_rounded,
+                  color: Colors.amber.shade800,
+                  title: s.t('tile_products'),
+                  subtitle: s.t('tile_products_sub'),
+                  onTap: widget.onOpenProducts,
+                ),
+                _ModuleTile(
+                  icon: Icons.people_alt_rounded,
+                  color: Colors.indigo.shade700,
+                  title: s.t('tile_customers'),
+                  subtitle: s.t('tile_customers_sub'),
+                  onTap: widget.onOpenCustomers,
+                ),
+                _ModuleTile(
+                  icon: Icons.delete_sweep_rounded,
+                  color: Colors.red.shade700,
+                  title: s.t('tile_bin'),
+                  subtitle: s.t('tile_bin_sub'),
+                  onTap: widget.onOpenBin,
+                ),
+                _ModuleTile(
+                  icon: Icons.storefront_rounded,
+                  color: Colors.purple.shade700,
+                  title: s.t('tile_profile'),
+                  subtitle: s.t('tile_profile_sub'),
+                  onTap: widget.onOpenSettings,
+                ),
+                _ModuleTile(
+                  icon: Icons.tune_rounded,
+                  color: Colors.blueGrey.shade700,
+                  title: s.t('tile_settings'),
+                  subtitle: s.t('tile_settings_sub'),
+                  onTap: widget.onOpenSettings,
+                ),
+              ],
             ),
           ],
-        ),
+        );
 
-        // 4. Bottom App Version, Verification & In-App Auto-Install Card
-        const SizedBox(height: 16),
-        InkWell(
+        final versionCard = InkWell(
           onTap: _checking ? null : () => _checkVersion(showFeedback: true),
           borderRadius: BorderRadius.circular(14),
           child: Container(
@@ -409,7 +528,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Text(
                             hasUpdate
                                 ? '${s.t("update_available")}: v${_latestInfo!.version} (Build ${_latestInfo!.buildNumber})'
-                                : '${s.t("current_ver")}: v${_installed.version} (Build ${_installed.buildNumber}) • ${s.t("up_to_date")}',
+                                : '${s.t("current_ver")}: v${_installed.version} (Build ${_installed.buildNumber}) · ${s.t("up_to_date")}',
                             style: TextStyle(
                                 fontSize: 11,
                                 color: hasUpdate
@@ -472,8 +591,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-        ),
-      ],
+        );
+
+        return ListView(
+          padding: EdgeInsets.fromLTRB(
+              isWide ? 20 : 12, isWide ? 18 : 12, isWide ? 20 : 12, 24),
+          children: [
+            headerCard,
+            if (isWide) ...[
+              const SizedBox(height: 14),
+              kpiStrip,
+              const SizedBox(height: 18),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: recentOrdersSection,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      children: [
+                        modulesGrid,
+                        const SizedBox(height: 14),
+                        versionCard,
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 14),
+              recentOrdersSection,
+              const SizedBox(height: 16),
+              modulesGrid,
+              const SizedBox(height: 16),
+              versionCard,
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _KpiBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _KpiBox({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -494,7 +698,11 @@ class _MiniBadge extends StatelessWidget {
       child: Text(
         '$label: $count',
         style: const TextStyle(
-            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
       ),
     );
   }

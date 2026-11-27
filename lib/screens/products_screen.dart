@@ -12,12 +12,16 @@ class ProductsScreen extends StatelessWidget {
   final FirestoreService service;
   final List<ProductModel> initialProducts;
   final AppStrings initialStrings;
+  final bool embedded;
+  final VoidCallback? onOpenBin;
 
   const ProductsScreen({
     super.key,
     required this.service,
     required this.initialProducts,
     required this.initialStrings,
+    this.embedded = false,
+    this.onOpenBin,
   });
 
   Future<void> _confirmDelete(
@@ -294,151 +298,204 @@ class ProductsScreen extends StatelessWidget {
               builder: (context, prodSnap) {
                 final products = prodSnap.data ?? [];
 
-                return Scaffold(
-                  appBar: AppBar(
-                    title: Text(s.t('products_title')),
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    actions: [
-                      IconButton(
-                        tooltip: s.t('bin_title'),
-                        icon: const Icon(Icons.delete_outline_rounded),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BinScreen(service: service),
+                Widget buildProductCard(ProductModel p) {
+                  return Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.black12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(p.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 14)),
+                                  if (p.origin.isNotEmpty)
+                                    Text(p.origin,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600)),
+                                ],
+                              ),
                             ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  body: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 680),
-                      child: products.isEmpty
-                          ? Center(child: Text(s.t('no_products')))
-                          : ListView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 12, 12, 80),
-                              itemCount: products.length,
-                              itemBuilder: (ctx, i) {
-                                final p = products[i];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: Colors.black12),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(p.name,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        fontSize: 14)),
-                                                if (p.origin.isNotEmpty)
-                                                  Text(p.origin,
-                                                      style: TextStyle(
-                                                          fontSize: 11,
-                                                          color: Colors
-                                                              .grey.shade600)),
-                                              ],
-                                            ),
-                                          ),
-                                          Switch(
-                                            value: p.active,
-                                            onChanged: (v) async {
-                                              try {
-                                                await service
-                                                    .toggleProductActive(p, v);
-                                                if (context.mounted) {
-                                                  UiHelpers.showFeedback(
-                                                      context,
-                                                      s.t('product_saved'));
-                                                }
-                                              } catch (_) {
-                                                if (context.mounted) {
-                                                  UiHelpers.showFeedback(
-                                                      context,
-                                                      s.t('action_failed'),
-                                                      isError: true);
-                                                }
-                                              }
-                                            },
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                                Icons.edit_outlined,
-                                                size: 18),
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            onPressed: () =>
-                                                _openEditor(context, s, p),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
-                                                color: Colors.red),
-                                            visualDensity:
-                                                VisualDensity.compact,
-                                            onPressed: () =>
-                                                _confirmDelete(context, s, p),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: p.packs
-                                            .map((pk) => Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 4),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        const Color(0xFFF1F5F4),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                  child: Text(
-                                                    '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
-                                                    style: const TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight.w600),
-                                                  ),
-                                                ))
-                                            .toList(),
-                                      ),
-                                    ],
+                            Switch(
+                              value: p.active,
+                              onChanged: (v) async {
+                                try {
+                                  await service.toggleProductActive(p, v);
+                                  if (context.mounted) {
+                                    UiHelpers.showFeedback(
+                                        context, s.t('product_saved'));
+                                  }
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    UiHelpers.showFeedback(
+                                        context, s.t('action_failed'),
+                                        isError: true);
+                                  }
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _openEditor(context, s, p),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  size: 18, color: Colors.red),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _confirmDelete(context, s, p),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: p.packs
+                              .map((pk) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F4),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '${pk.label} • ${TemplateEngine.formatMoney(pk.price)}',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return Scaffold(
+                  backgroundColor: Colors.transparent,
+                  appBar: embedded
+                      ? null
+                      : AppBar(
+                          title: Text(s.t('products_title')),
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                          actions: [
+                            IconButton(
+                              tooltip: s.t('bin_title'),
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => BinScreen(service: service),
                                   ),
                                 );
                               },
                             ),
+                          ],
+                        ),
+                  body: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 760;
+                          return Column(
+                            children: [
+                              if (embedded)
+                                Container(
+                                  color: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        '${s.t("products_title")} (${products.length})',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15),
+                                      ),
+                                      const Spacer(),
+                                      if (onOpenBin != null) ...[
+                                        OutlinedButton.icon(
+                                          onPressed: onOpenBin,
+                                          icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                              size: 16),
+                                          label: Text(s.t('bin_title')),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
+                                      FilledButton.icon(
+                                        style: FilledButton.styleFrom(
+                                            backgroundColor: primary),
+                                        onPressed: () =>
+                                            _openEditor(context, s),
+                                        icon: const Icon(Icons.add, size: 18),
+                                        label: Text(s.t('add_product')),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              if (embedded) const Divider(height: 1),
+                              Expanded(
+                                child: products.isEmpty
+                                    ? Center(child: Text(s.t('no_products')))
+                                    : isWide
+                                        ? GridView.builder(
+                                            padding: const EdgeInsets.fromLTRB(
+                                                16, 16, 16, 80),
+                                            gridDelegate:
+                                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                              maxCrossAxisExtent: 460,
+                                              mainAxisSpacing: 10,
+                                              crossAxisSpacing: 10,
+                                              mainAxisExtent: 142,
+                                            ),
+                                            itemCount: products.length,
+                                            itemBuilder: (ctx, i) =>
+                                                buildProductCard(products[i]),
+                                          )
+                                        : ListView.separated(
+                                            padding: const EdgeInsets.fromLTRB(
+                                                12, 12, 12, 80),
+                                            itemCount: products.length,
+                                            separatorBuilder: (_, __) =>
+                                                const SizedBox(height: 10),
+                                            itemBuilder: (ctx, i) =>
+                                                buildProductCard(products[i]),
+                                          ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
-                  floatingActionButton: FloatingActionButton.extended(
-                    onPressed: () => _openEditor(context, s),
-                    icon: const Icon(Icons.add),
-                    label: Text(s.t('add_product')),
-                  ),
+                  floatingActionButton: embedded
+                      ? null
+                      : FloatingActionButton.extended(
+                          onPressed: () => _openEditor(context, s),
+                          icon: const Icon(Icons.add),
+                          label: Text(s.t('add_product')),
+                        ),
                 );
               },
             );

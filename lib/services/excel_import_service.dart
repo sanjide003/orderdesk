@@ -38,6 +38,70 @@ class ExcelImportResult {
 }
 
 class ExcelImportService {
+  static Uint8List generateSampleWorkbookBytes() {
+    final workbook = xl.Excel.createExcel();
+    const sheetName = 'Customers_Import';
+    if (workbook.sheets.containsKey('Sheet1')) {
+      workbook.rename('Sheet1', sheetName);
+    }
+    final sheet = workbook[sheetName];
+
+    sheet.appendRow([
+      xl.TextCellValue('Customer Name'),
+      xl.TextCellValue('WhatsApp Number'),
+      xl.TextCellValue('Delivery Address'),
+      xl.TextCellValue('Pincode'),
+      xl.TextCellValue('Product'),
+      xl.TextCellValue('Pack'),
+      xl.TextCellValue('Qty'),
+      xl.TextCellValue('Total'),
+      xl.TextCellValue('Status'),
+      xl.TextCellValue('Notes'),
+    ]);
+
+    sheet.appendRow([
+      xl.TextCellValue('Arjun Menon'),
+      xl.TextCellValue('9876543210'),
+      xl.TextCellValue('MG Road, Ernakulam'),
+      xl.TextCellValue('682016'),
+      xl.TextCellValue('Tuna Pickle'),
+      xl.TextCellValue('500g'),
+      xl.IntCellValue(2),
+      xl.IntCellValue(960),
+      xl.TextCellValue('Paid'),
+      xl.TextCellValue('Evening delivery preferred'),
+    ]);
+
+    sheet.appendRow([
+      xl.TextCellValue('Fathima Beevi'),
+      xl.TextCellValue('9847012345'),
+      xl.TextCellValue('Beach Road, Kozhikode'),
+      xl.TextCellValue('673001'),
+      xl.TextCellValue('Tuna Pickle'),
+      xl.TextCellValue('350g'),
+      xl.IntCellValue(1),
+      xl.IntCellValue(350),
+      xl.TextCellValue('Payment Pending'),
+      xl.TextCellValue('Call before delivery'),
+    ]);
+
+    final encoded = workbook.encode() ?? <int>[];
+    return Uint8List.fromList(encoded);
+  }
+
+  static Future<bool> downloadSampleTemplate() async {
+    final bytes = generateSampleWorkbookBytes();
+    if (bytes.isEmpty) return false;
+    final uri = await FilePicker.saveFile(
+      dialogTitle: 'Save Sample Excel Template',
+      fileName: 'orderdesk_customers_template.xlsx',
+      bytes: bytes,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    return uri != null;
+  }
+
   static Future<ExcelImportResult?> pickAndParseFile() async {
     final files = await FilePicker.pickFiles(
       type: FileType.custom,
@@ -187,7 +251,6 @@ class ExcelImportService {
           address = address.isEmpty ? pin : '$address - $pin';
         }
       } else {
-        // Fallback positional order: Name, Phone, Address
         name = at(0);
         phone = at(1);
         address = at(2);

@@ -59,8 +59,9 @@ jobs:
   build_and_publish_web:
     name: Build Web & Bundle Direct APK to Vercel
     needs: [ build_android ]
+    if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     permissions:
       contents: write
     steps:
@@ -74,22 +75,29 @@ jobs:
           cp web/index.html /tmp/custom_index.html
           cp web/manifest.json /tmp/custom_manifest.json
           cp web/favicon.png /tmp/custom_favicon.png || true
+          cp web/version.json /tmp/custom_version.json || true
           cp -r web/icons /tmp/custom_icons || true
           flutter create --platforms=web --org com.wapp --project-name orderdesk .
           cp /tmp/custom_index.html web/index.html
           cp /tmp/custom_manifest.json web/manifest.json
           cp /tmp/custom_favicon.png web/favicon.png || true
+          cp /tmp/custom_version.json web/version.json || true
           rm -rf web/icons && cp -r /tmp/custom_icons web/icons || true
       - run: flutter pub get
-      - run: flutter build web --release
+      - name: Build Flutter Web (Self-Hosted Assets, No External CDN)
+        run: flutter build web --release --base-href=/ --no-web-resources-cdn
       - name: Download Built APK into Web Downloads Folder
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: orderdesk-android-arm64-apk
           path: build/web/downloads
       - name: Rename APK, Write version.json & vercel.json
         run: |
-          mv build/web/downloads/app-release.apk build/web/downloads/orderdesk-latest.apk
+          mkdir -p build/web/downloads
+          if [ -f "build/web/downloads/app-release.apk" ]; then
+            mv build/web/downloads/app-release.apk build/web/downloads/orderdesk-latest.apk
+          fi
           VER_LINE=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
           BUILD_NUM=$(echo "$VER_LINE" | cut -d'+' -f2)
@@ -104,23 +112,36 @@ jobs:
           VJSON
           cat << VCJSON > build/web/vercel.json
           {
+            "cleanUrls": false,
+            "trailingSlash": false,
             "headers": [
               {
                 "source": "/version.json",
-                "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+                "headers": [
+                  { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*" }
+                ]
+              },
+              {
+                "source": "/flutter_bootstrap.js",
+                "headers": [
+                  { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+                ]
               },
               {
                 "source": "/downloads/(.*)",
                 "headers": [
                   { "key": "Content-Disposition", "value": "attachment; filename=orderdesk-latest.apk" },
-                  { "key": "Content-Type", "value": "application/vnd.android.package-archive" }
+                  { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
+                  { "key": "Access-Control-Allow-Origin", "value": "*" }
                 ]
               }
             ],
             "rewrites": [
-              { "source": "/downloads/(.*)", "destination": "/downloads/$1" },
-              { "source": "/version.json", "destination": "/version.json" },
-              { "source": "/(.*)", "destination": "/index.html" }
+              {
+                "source": "/((?!downloads/|version\\.json|assets/|canvaskit/|icons/|.*\\..*).*)",
+                "destination": "/index.html"
+              }
             ]
           }
           VCJSON

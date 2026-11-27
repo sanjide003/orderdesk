@@ -13,8 +13,9 @@ import '../services/ui_helpers.dart';
 
 class BinScreen extends StatefulWidget {
   final FirestoreService service;
+  final bool embedded;
 
-  const BinScreen({super.key, required this.service});
+  const BinScreen({super.key, required this.service, this.embedded = false});
 
   @override
   State<BinScreen> createState() => _BinScreenState();
@@ -57,96 +58,121 @@ class _BinScreenState extends State<BinScreen> {
                                 templates.length +
                                 customers.length;
 
+                            Future<void> handleEmptyBin() async {
+                              final ok = await UiHelpers.confirmDialog(
+                                context,
+                                title: s.t('empty_bin'),
+                                message: s.t('empty_bin_q'),
+                                confirmLabel: s.t('delete_forever'),
+                                cancelLabel: s.t('cancel'),
+                                isDestructive: true,
+                              );
+                              if (!ok) return;
+                              try {
+                                await widget.service.emptyBin(
+                                  orders: orders,
+                                  products: products,
+                                  templates: templates,
+                                  customers: customers,
+                                );
+                                if (context.mounted) {
+                                  UiHelpers.showFeedback(
+                                      context, s.t('bin_emptied'));
+                                }
+                              } catch (_) {
+                                if (context.mounted) {
+                                  UiHelpers.showFeedback(
+                                      context, s.t('action_failed'),
+                                      isError: true);
+                                }
+                              }
+                            }
+
                             return Scaffold(
-                              appBar: AppBar(
-                                title: Text(s.t('bin_title')),
-                                backgroundColor: primary,
-                                foregroundColor: Colors.white,
-                                actions: [
-                                  if (totalCount > 0)
-                                    TextButton.icon(
-                                      onPressed: () async {
-                                        final ok =
-                                            await UiHelpers.confirmDialog(
-                                          context,
-                                          title: s.t('empty_bin'),
-                                          message: s.t('empty_bin_q'),
-                                          confirmLabel: s.t('delete_forever'),
-                                          cancelLabel: s.t('cancel'),
-                                          isDestructive: true,
-                                        );
-                                        if (!ok) return;
-                                        try {
-                                          await widget.service.emptyBin(
-                                            orders: orders,
-                                            products: products,
-                                            templates: templates,
-                                            customers: customers,
-                                          );
-                                          if (context.mounted) {
-                                            UiHelpers.showFeedback(
-                                                context, s.t('bin_emptied'));
-                                          }
-                                        } catch (_) {
-                                          if (context.mounted) {
-                                            UiHelpers.showFeedback(
-                                                context, s.t('action_failed'),
-                                                isError: true);
-                                          }
-                                        }
-                                      },
-                                      icon: const Icon(
-                                          Icons.delete_sweep_outlined,
-                                          color: Colors.white,
-                                          size: 18),
-                                      label: Text(
-                                        s.t('empty_bin'),
-                                        style: const TextStyle(
-                                            color: Colors.white, fontSize: 12),
-                                      ),
+                              backgroundColor: Colors.transparent,
+                              appBar: widget.embedded
+                                  ? null
+                                  : AppBar(
+                                      title: Text(s.t('bin_title')),
+                                      backgroundColor: primary,
+                                      foregroundColor: Colors.white,
+                                      actions: [
+                                        if (totalCount > 0)
+                                          TextButton.icon(
+                                            onPressed: handleEmptyBin,
+                                            icon: const Icon(
+                                                Icons.delete_sweep_outlined,
+                                                color: Colors.white,
+                                                size: 18),
+                                            label: Text(
+                                              s.t('empty_bin'),
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                ],
-                              ),
                               body: Center(
                                 child: ConstrainedBox(
                                   constraints:
-                                      const BoxConstraints(maxWidth: 680),
+                                      const BoxConstraints(maxWidth: 1200),
                                   child: Column(
                                     children: [
                                       Container(
                                         width: double.infinity,
                                         color: Colors.white,
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 10),
-                                        child: SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Row(
-                                            children: [
-                                              _catChip(
-                                                0,
-                                                '${s.t('bin_orders')} (${orders.length})',
-                                                primary,
+                                            horizontal: 16, vertical: 10),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: SingleChildScrollView(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                child: Row(
+                                                  children: [
+                                                    _catChip(
+                                                      0,
+                                                      '${s.t('bin_orders')} (${orders.length})',
+                                                      primary,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    _catChip(
+                                                      1,
+                                                      '${s.t('bin_products')} (${products.length})',
+                                                      primary,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    _catChip(
+                                                      2,
+                                                      '${s.t('bin_templates')} (${templates.length})',
+                                                      primary,
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    _catChip(
+                                                      3,
+                                                      '${s.t('bin_customers')} (${customers.length})',
+                                                      primary,
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              const SizedBox(width: 6),
-                                              _catChip(
-                                                1,
-                                                '${s.t('bin_products')} (${products.length})',
-                                                primary,
+                                            ),
+                                            if (widget.embedded &&
+                                                totalCount > 0)
+                                              OutlinedButton.icon(
+                                                style: OutlinedButton.styleFrom(
+                                                  foregroundColor:
+                                                      Colors.red.shade700,
+                                                ),
+                                                onPressed: handleEmptyBin,
+                                                icon: const Icon(
+                                                    Icons.delete_sweep_outlined,
+                                                    size: 17),
+                                                label: Text(s.t('empty_bin')),
                                               ),
-                                              const SizedBox(width: 6),
-                                              _catChip(
-                                                2,
-                                                '${s.t('bin_templates')} (${templates.length})',
-                                                primary,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              _catChip(
-                                                3,
-                                                '${s.t('bin_customers')} (${customers.length})',
-                                                primary,
-                                              ),
-                                            ],
-                                          ),
+                                          ],
                                         ),
                                       ),
                                       const Divider(height: 1),

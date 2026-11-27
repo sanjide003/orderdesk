@@ -17,6 +17,7 @@ class OrdersScreen extends StatefulWidget {
   final List<TemplateModel> templates;
   final List<OrderModel> orders;
   final AppStrings s;
+  final VoidCallback? onOpenBin;
 
   const OrdersScreen({
     super.key,
@@ -26,6 +27,7 @@ class OrdersScreen extends StatefulWidget {
     required this.templates,
     required this.orders,
     required this.s,
+    this.onOpenBin,
   });
 
   @override
@@ -309,12 +311,17 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     IconButton.outlined(
                       tooltip: s.t('bin_title'),
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => BinScreen(service: widget.service),
-                          ),
-                        );
+                        if (widget.onOpenBin != null) {
+                          widget.onOpenBin!();
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  BinScreen(service: widget.service),
+                            ),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.delete_outline_rounded, size: 19),
                     ),

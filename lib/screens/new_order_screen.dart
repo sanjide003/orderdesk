@@ -251,266 +251,323 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
       builder: (context, custSnap) {
         final customers = custSnap.data ?? [];
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        final customerCard = Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(s.t('customer_details'),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
-                      ),
-                      if (customers.isNotEmpty)
-                        TextButton.icon(
-                          onPressed: () => _pickSavedCustomer(customers),
-                          style: TextButton.styleFrom(
-                              visualDensity: VisualDensity.compact),
-                          icon: const Icon(Icons.people_outline, size: 15),
-                          label: Text(s.t('pick_customer'),
-                              style: const TextStyle(fontSize: 11.5)),
-                        ),
-                      TextButton(
-                        onPressed: _clear,
-                        style: TextButton.styleFrom(
-                            visualDensity: VisualDensity.compact),
-                        child: Text(s.t('clear'),
-                            style: const TextStyle(fontSize: 12)),
-                      ),
-                    ],
+                  Expanded(
+                    child: Text(s.t('customer_details'),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700, fontSize: 14)),
                   ),
-                  TextField(
-                    controller: _phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    onChanged: (val) {
-                      final norm = FirestoreService.normalizePhoneKey(val);
-                      if (norm.length == 10 && customers.isNotEmpty) {
-                        final match = customers.cast<CustomerModel?>().firstWhere(
-                              (c) =>
-                                  c != null &&
-                                  FirestoreService.normalizePhoneKey(c.phone) ==
-                                      norm,
-                              orElse: () => null,
-                            );
-                        if (match != null) {
-                          if (_nameCtrl.text.trim().isEmpty) {
-                            _nameCtrl.text = match.name;
-                          }
-                          if (_addressCtrl.text.trim().isEmpty) {
-                            _addressCtrl.text = match.address;
-                          }
-                        }
+                  if (customers.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => _pickSavedCustomer(customers),
+                      style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact),
+                      icon: const Icon(Icons.people_outline, size: 15),
+                      label: Text(s.t('pick_customer'),
+                          style: const TextStyle(fontSize: 11.5)),
+                    ),
+                  TextButton(
+                    onPressed: _clear,
+                    style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                    child:
+                        Text(s.t('clear'), style: const TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                onChanged: (val) {
+                  final norm = FirestoreService.normalizePhoneKey(val);
+                  if (norm.length == 10 && customers.isNotEmpty) {
+                    final match = customers.cast<CustomerModel?>().firstWhere(
+                          (c) =>
+                              c != null &&
+                              FirestoreService.normalizePhoneKey(c.phone) ==
+                                  norm,
+                          orElse: () => null,
+                        );
+                    if (match != null) {
+                      if (_nameCtrl.text.trim().isEmpty) {
+                        _nameCtrl.text = match.name;
                       }
-                    },
-                    decoration: InputDecoration(
-                      labelText: s.t('whatsapp_number'),
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 18),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _nameCtrl,
-                    decoration: InputDecoration(
-                      labelText: s.t('customer_name'),
-                      prefixIcon: const Icon(Icons.person_outline, size: 18),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _addressCtrl,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: s.t('delivery_address'),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ],
+                      if (_addressCtrl.text.trim().isEmpty) {
+                        _addressCtrl.text = match.address;
+                      }
+                    }
+                  }
+                },
+                decoration: InputDecoration(
+                  labelText: s.t('whatsapp_number'),
+                  prefixIcon: const Icon(Icons.phone_outlined, size: 18),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.black12),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _nameCtrl,
+                decoration: InputDecoration(
+                  labelText: s.t('customer_name'),
+                  prefixIcon: const Icon(Icons.person_outline, size: 18),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(s.t('select_items'),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14)),
-                  const SizedBox(height: 6),
-                  ...widget.products.where((p) => p.active).expand((product) {
-                    return product.packs.map((pack) {
-                      final key = '${product.id}__${pack.label}';
-                      final qty = _cartQty[key] ?? 0;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('${product.name} (${pack.label})',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13)),
-                                  Text(
-                                    '${TemplateEngine.formatMoney(pack.price)} • ${pack.deliveryCharge <= 0 ? s.t("free_delivery") : "+${TemplateEngine.formatMoney(pack.deliveryCharge)}"}',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade600),
-                                  ),
-                                ],
+              const SizedBox(height: 8),
+              TextField(
+                controller: _addressCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: s.t('delivery_address'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        final productsCard = Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s.t('select_items'),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 6),
+              ...widget.products.where((p) => p.active).expand((product) {
+                return product.packs.map((pack) {
+                  final key = '${product.id}__${pack.label}';
+                  final qty = _cartQty[key] ?? 0;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${product.name} (${pack.label})',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13)),
+                              Text(
+                                '${TemplateEngine.formatMoney(pack.price)} · ${pack.deliveryCharge <= 0 ? s.t("free_delivery") : "+${TemplateEngine.formatMoney(pack.deliveryCharge)}"}',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey.shade600),
                               ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F4),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove, size: 16),
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: qty > 0
-                                        ? () => setState(
-                                            () => _cartQty[key] = qty - 1)
-                                        : null,
-                                  ),
-                                  Text('$qty',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13)),
-                                  IconButton(
-                                    icon: const Icon(Icons.add, size: 16),
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: () =>
-                                        setState(() => _cartQty[key] = qty + 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    });
-                  }),
-                  const Divider(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${s.t("subtotal")}: ${TemplateEngine.formatMoney(calc.subtotal)}  •  ${s.t("delivery")}: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}',
-                              style: TextStyle(
-                                  fontSize: 11, color: Colors.grey.shade700),
-                            ),
-                            Text(
-                              '${s.t("total")}: ${TemplateEngine.formatMoney(calc.total)}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        width: 100,
-                        child: TextField(
-                          controller: _manualDeliveryCtrl,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            labelText: s.t('override_delivery'),
-                            isDense: true,
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<String>(
-                      style:
-                          const ButtonStyle(visualDensity: VisualDensity.compact),
-                      segments: [
-                        ButtonSegment(
-                            value: 'ml',
-                            label: Text(s.t('lang_ml'),
-                                style: const TextStyle(fontSize: 11))),
-                        ButtonSegment(
-                            value: 'en',
-                            label: Text(s.t('lang_en'),
-                                style: const TextStyle(fontSize: 11))),
-                        ButtonSegment(
-                            value: 'manglish',
-                            label: Text(s.t('lang_manglish'),
-                                style: const TextStyle(fontSize: 11))),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F4),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove, size: 16),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: qty > 0
+                                    ? () => setState(
+                                        () => _cartQty[key] = qty - 1)
+                                    : null,
+                              ),
+                              Text('$qty',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    fontFeatures: [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  )),
+                              IconButton(
+                                icon: const Icon(Icons.add, size: 16),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () =>
+                                    setState(() => _cartQty[key] = qty + 1),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
-                      selected: {_payLang},
-                      onSelectionChanged: (set) =>
-                          setState(() => _payLang = set.first),
+                    ),
+                  );
+                });
+              }),
+            ],
+          ),
+        );
+
+        final summaryCard = Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.black12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${s.t("subtotal")}: ${TemplateEngine.formatMoney(calc.subtotal)}  ·  ${s.t("delivery")}: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}',
+                          style: TextStyle(
+                              fontSize: 11.5, color: Colors.grey.shade700),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${s.t("total")}: ${TemplateEngine.formatMoney(calc.total)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: 110,
+                    child: TextField(
+                      controller: _manualDeliveryCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: s.t('override_delivery'),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                  segments: [
+                    ButtonSegment(
+                        value: 'ml',
+                        label: Text(s.t('lang_ml'),
+                            style: const TextStyle(fontSize: 11))),
+                    ButtonSegment(
+                        value: 'en',
+                        label: Text(s.t('lang_en'),
+                            style: const TextStyle(fontSize: 11))),
+                    ButtonSegment(
+                        value: 'manglish',
+                        label: Text(s.t('lang_manglish'),
+                            style: const TextStyle(fontSize: 11))),
+                  ],
+                  selected: {_payLang},
+                  onSelectionChanged: (set) =>
+                      setState(() => _payLang = set.first),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _saveOrder(calc, items),
+                      icon: const Icon(Icons.save_outlined, size: 17),
+                      label: Text(s.t('save_order'),
+                          style: const TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () =>
+                          _saveOrder(calc, items, sendPayment: true),
+                      icon: const Icon(Icons.send_rounded, size: 16),
+                      label: Text(s.t('save_and_pay_msg'),
+                          style: const TextStyle(fontSize: 11)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 820;
+            if (isWide) {
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _saveOrder(calc, items),
-                          icon: const Icon(Icons.save_outlined, size: 17),
-                          label: Text(s.t('save_order'),
-                              style: const TextStyle(fontSize: 12)),
+                        flex: 6,
+                        child: Column(
+                          children: [
+                            customerCard,
+                            const SizedBox(height: 12),
+                            productsCard,
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 16),
                       Expanded(
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () =>
-                              _saveOrder(calc, items, sendPayment: true),
-                          icon: const Icon(Icons.send_rounded, size: 16),
-                          label: Text(s.t('save_and_pay_msg'),
-                              style: const TextStyle(fontSize: 11)),
-                        ),
+                        flex: 4,
+                        child: summaryCard,
                       ),
                     ],
                   ),
                 ],
-              ),
-            ),
-          ],
+              );
+            }
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+              children: [
+                customerCard,
+                const SizedBox(height: 10),
+                productsCard,
+                const SizedBox(height: 10),
+                summaryCard,
+              ],
+            );
+          },
         );
       },
     );

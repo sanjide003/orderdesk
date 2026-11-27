@@ -375,13 +375,18 @@ class FirestoreService {
     required bool saveCustomers,
     required bool saveOrders,
     required String defaultOrderStatus,
+    void Function(int processed, int total)? onProgress,
   }) async {
     final now = DateTime.now();
+    final total = rows.length;
+    onProgress?.call(0, total);
+
     var batch = _db.batch();
     int opCount = 0;
+    int processed = 0;
 
-    Future<void> commitIfNeeded() async {
-      if (opCount >= 400) {
+    Future<void> commitChunk() async {
+      if (opCount > 0) {
         await batch.commit();
         batch = _db.batch();
         opCount = 0;
@@ -410,7 +415,6 @@ class FirestoreService {
           SetOptions(merge: true),
         );
         opCount++;
-        await commitIfNeeded();
       }
 
       if (saveOrders) {
@@ -422,8 +426,10 @@ class FirestoreService {
                 OrderItem(
                   productId: '',
                   productName: row.productName,
-                  packLabel: row.packLabel.isNotEmpty ? row.packLabel : 'Standard',
-                  unitPrice: row.quantity > 0 ? row.amount / row.quantity : row.amount,
+                  packLabel:
+                      row.packLabel.isNotEmpty ? row.packLabel : 'Standard',
+                  unitPrice:
+                      row.quantity > 0 ? row.amount / row.quantity : row.amount,
                   packDeliveryCharge: 0,
                   quantity: row.quantity,
                 ),
@@ -444,13 +450,17 @@ class FirestoreService {
         );
         batch.set(_db.collection('orders').doc(), order.toMap());
         opCount++;
-        await commitIfNeeded();
+      }
+
+      processed++;
+      if (opCount >= 40) {
+        await commitChunk();
+        onProgress?.call(processed, total);
       }
     }
 
-    if (opCount > 0) {
-      await batch.commit();
-    }
+    await commitChunk();
+    onProgress?.call(total, total);
   }
 
   // -------------------- Empty Bin & Defaults --------------------

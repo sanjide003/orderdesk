@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
   final BusinessProfile profile;
   final DeliveryRules rules;
   final AppStrings s;
+  final bool embedded;
 
   const SettingsScreen({
     super.key,
@@ -19,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
     required this.profile,
     required this.rules,
     required this.s,
+    this.embedded = false,
   });
 
   @override
@@ -265,16 +267,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final primary = Color(_colorHex);
 
             return Scaffold(
-              appBar: AppBar(
-                title: Text(s.t('tile_settings')),
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-              ),
+              backgroundColor: Colors.transparent,
+              appBar: widget.embedded
+                  ? null
+                  : AppBar(
+                      title: Text(s.t('tile_settings')),
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                    ),
               body: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 680),
+                  constraints: const BoxConstraints(maxWidth: 960),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                     children: [
                       _CardBox(
                         title: s.t('app_language'),
@@ -527,7 +532,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(width: 8),
                           TextButton.icon(
                             onPressed: () {
-                              Navigator.pop(context);
+                              if (!widget.embedded &&
+                                  Navigator.canPop(context)) {
+                                Navigator.pop(context);
+                              }
                               FirebaseAuth.instance.signOut();
                             },
                             icon: const Icon(Icons.logout,
