@@ -1,4 +1,4 @@
-// @dart=3.4
+// @dart=3.10
 // Flutter web bootstrap script for package:orderdesk/main.dart.
 //
 // Generated file. Do not edit.

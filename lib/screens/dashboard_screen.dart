@@ -6,6 +6,8 @@ import '../models/order_model.dart';
 import '../services/app_strings.dart';
 import '../services/app_version_service.dart';
 import '../services/template_engine.dart';
+import '../services/ui_helpers.dart';
+import '../widgets/update_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   final BusinessProfile profile;
@@ -34,24 +36,55 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  InstalledAppVersion _installed = const InstalledAppVersion(
+    version: AppVersionService.fallbackVersion,
+    buildNumber: AppVersionService.fallbackBuildNumber,
+  );
   AppVersionInfo? _latestInfo;
   bool _checking = false;
 
   @override
   void initState() {
     super.initState();
-    _checkVersion();
+    _checkVersion(showFeedback: false);
   }
 
-  Future<void> _checkVersion() async {
+  Future<void> _checkVersion({bool showFeedback = true}) async {
     setState(() => _checking = true);
+    final installed = await AppVersionService.getInstalledVersion();
     final info = await AppVersionService.fetchLatest();
-    if (mounted) {
-      setState(() {
-        _latestInfo = info;
-        _checking = false;
-      });
+    if (!mounted) return;
+    setState(() {
+      _installed = installed;
+      _latestInfo = info;
+      _checking = false;
+    });
+    if (showFeedback) {
+      if (info == null) {
+        UiHelpers.showFeedback(context, widget.s.t('update_check_failed'),
+            isError: true);
+      } else if (info.buildNumber > installed.buildNumber) {
+        _openUpdateDialog(Color(widget.profile.primaryColorHex));
+      } else {
+        UiHelpers.showFeedback(
+          context,
+          '${widget.s.t('up_to_date')} (v${installed.version})',
+        );
+      }
     }
+  }
+
+  void _openUpdateDialog(Color primary) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => UpdateDialog(
+        s: widget.s,
+        installed: _installed,
+        latest: _latestInfo,
+        primaryColor: primary,
+      ),
+    );
   }
 
   @override
@@ -75,8 +108,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .where((o) => o.isPaidOrBeyond)
         .fold<double>(0, (sum, o) => sum + o.totalAmount);
 
-    final hasUpdate = _latestInfo != null &&
-        _latestInfo!.buildNumber > AppVersionService.currentBuildNumber;
+    final hasUpdate =
+        _latestInfo != null && _latestInfo!.buildNumber > _installed.buildNumber;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
@@ -94,6 +127,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           child: Row(
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/app_logo.png',
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 11),
                       ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(s.t('total_revenue'),
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 11)),
@@ -324,87 +367,110 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
 
-        // 4. Bottom App Version, Live Auto-Update & Direct APK Download Card
+        // 4. Bottom App Version, Verification & In-App Auto-Install Card
         const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: hasUpdate ? Colors.orange.shade400 : Colors.black12,
-              width: hasUpdate ? 1.5 : 1,
+        InkWell(
+          onTap: _checking ? null : () => _checkVersion(showFeedback: true),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: hasUpdate ? Colors.orange.shade400 : Colors.black12,
+                width: hasUpdate ? 1.5 : 1,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    hasUpdate
-                        ? Icons.system_update_rounded
-                        : Icons.verified_outlined,
-                    size: 20,
-                    color: hasUpdate ? Colors.orange.shade800 : primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s.t('app_version_card'),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 13),
-                        ),
-                        Text(
-                          hasUpdate
-                              ? '${s.t("update_available")}: v${_latestInfo!.version} (Build ${_latestInfo!.buildNumber})'
-                              : '${s.t("current_ver")}: v${AppVersionService.currentVersion} (Build ${AppVersionService.currentBuildNumber}) • ${s.t("up_to_date")}',
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade700),
-                        ),
-                      ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        width: 30,
+                        height: 30,
+                        fit: BoxFit.cover,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: s.t('check_updates'),
-                    onPressed: _checking ? null : _checkVersion,
-                    icon: _checking
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh_rounded, size: 19),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.t('app_version_card'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13),
+                          ),
+                          Text(
+                            hasUpdate
+                                ? '${s.t("update_available")}: v${_latestInfo!.version} (Build ${_latestInfo!.buildNumber})'
+                                : '${s.t("current_ver")}: v${_installed.version} (Build ${_installed.buildNumber}) • ${s.t("up_to_date")}',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: hasUpdate
+                                    ? Colors.orange.shade800
+                                    : Colors.grey.shade700,
+                                fontWeight: hasUpdate
+                                    ? FontWeight.w700
+                                    : FontWeight.normal),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: s.t('check_updates'),
+                      onPressed: _checking
+                          ? null
+                          : () => _checkVersion(showFeedback: true),
+                      icon: _checking
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              hasUpdate
+                                  ? Icons.system_update_rounded
+                                  : Icons.verified_outlined,
+                              size: 20,
+                              color:
+                                  hasUpdate ? Colors.orange.shade800 : primary,
+                            ),
+                    ),
+                  ],
+                ),
+                if (kIsWeb || hasUpdate) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor:
+                            hasUpdate ? Colors.orange.shade800 : primary,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => _openUpdateDialog(
+                        hasUpdate ? Colors.orange.shade800 : primary,
+                      ),
+                      icon: const Icon(Icons.system_update_alt_rounded,
+                          size: 18),
+                      label: Text(
+                        hasUpdate ? s.t('update_now') : s.t('download_apk'),
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   ),
                 ],
-              ),
-              if (kIsWeb || hasUpdate) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor:
-                          hasUpdate ? Colors.orange.shade800 : primary,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () =>
-                        AppVersionService.downloadApk(_latestInfo?.apkUrl),
-                    icon: const Icon(Icons.download_rounded, size: 18),
-                    label: Text(
-                      hasUpdate ? s.t('update_now') : s.t('download_apk'),
-                      style: const TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
       ],

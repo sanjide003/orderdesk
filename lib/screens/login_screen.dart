@@ -60,13 +60,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Center(
                       child: Container(
-                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: cs.primaryContainer,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: cs.primary.withValues(alpha: 0.22),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Icon(Icons.chat_rounded,
-                            size: 34, color: cs.primary),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Image.asset(
+                            'assets/images/app_logo.png',
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

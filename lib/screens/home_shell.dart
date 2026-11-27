@@ -6,9 +6,11 @@ import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/template_model.dart';
 import '../services/app_strings.dart';
+import '../services/app_version_service.dart';
 import '../services/firestore_service.dart';
 import '../services/lakfa_seed_data.dart';
 import '../services/ui_helpers.dart';
+import '../widgets/update_dialog.dart';
 import 'bin_screen.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
@@ -29,6 +31,36 @@ class _HomeShellState extends State<HomeShell> {
   final _service = FirestoreService();
   int _tabIndex = 0;
   CustomerModel? _prefilledCustomer;
+  bool _checkedStartupUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkStartupUpdate();
+  }
+
+  Future<void> _checkStartupUpdate() async {
+    if (_checkedStartupUpdate) return;
+    _checkedStartupUpdate = true;
+
+    final installed = await AppVersionService.getInstalledVersion();
+    final latest = await AppVersionService.fetchLatest();
+    if (!mounted || latest == null) return;
+    if (latest.buildNumber > installed.buildNumber) {
+      final lang = _service.languageNotifier.value ?? 'en';
+      final color = Color(_service.colorNotifier.value ?? 0xFF0F766E);
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => UpdateDialog(
+          s: AppStrings(lang),
+          installed: installed,
+          latest: latest,
+          primaryColor: color,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,11 +204,29 @@ class _HomeShellState extends State<HomeShell> {
 
                                   return Scaffold(
                                     appBar: AppBar(
-                                      title: Text(
-                                        profile.brandName,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 17),
+                                      title: Row(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Image.asset(
+                                              'assets/images/app_logo.png',
+                                              width: 28,
+                                              height: 28,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 9),
+                                          Expanded(
+                                            child: Text(
+                                              profile.brandName,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 17),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                       backgroundColor: primary,
                                       foregroundColor: Colors.white,

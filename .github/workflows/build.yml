@@ -30,10 +30,16 @@ jobs:
           if [ ! -d "android" ]; then
             flutter create --platforms=android --org com.wapp --project-name orderdesk .
           fi
-      - name: Copy google-services.json & Skip Slow Release Lint
+      - name: Copy google-services.json, Permissions & Skip Slow Release Lint
         run: |
           if [ -f "firebase/google-services.json" ]; then
             cp firebase/google-services.json android/app/google-services.json
+          fi
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            if ! grep -q "REQUEST_INSTALL_PACKAGES" "$MANIFEST"; then
+              sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <application|' "$MANIFEST"
+            fi
           fi
           if [ -f "android/app/build.gradle.kts" ]; then
             printf '\nandroid { lint { checkReleaseBuilds = false; abortOnError = false } }\n' >> android/app/build.gradle.kts
@@ -41,6 +47,8 @@ jobs:
             printf '\nandroid { lintOptions { checkReleaseBuilds false; abortOnError false } }\n' >> android/app/build.gradle
           fi
       - run: flutter pub get
+      - name: Generate Custom Android App Icons
+        run: dart run flutter_launcher_icons
       - name: Build arm64 Android APK
         run: flutter build apk --release --target-platform android-arm64
       - uses: actions/upload-artifact@v4
@@ -61,13 +69,17 @@ jobs:
         with:
           channel: 'stable'
           cache: true
-      - name: Ensure Web Platform Config Exists (Preserve Custom index.html)
+      - name: Ensure Web Platform Config Exists (Preserve Custom Assets)
         run: |
           cp web/index.html /tmp/custom_index.html
           cp web/manifest.json /tmp/custom_manifest.json
+          cp web/favicon.png /tmp/custom_favicon.png || true
+          cp -r web/icons /tmp/custom_icons || true
           flutter create --platforms=web --org com.wapp --project-name orderdesk .
           cp /tmp/custom_index.html web/index.html
           cp /tmp/custom_manifest.json web/manifest.json
+          cp /tmp/custom_favicon.png web/favicon.png || true
+          rm -rf web/icons && cp -r /tmp/custom_icons web/icons || true
       - run: flutter pub get
       - run: flutter build web --release
       - name: Download Built APK into Web Downloads Folder

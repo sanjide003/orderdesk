@@ -28,6 +28,7 @@ file:///app/applet/lib/services/lakfa_seed_data.dart
 file:///app/applet/lib/services/template_engine.dart
 file:///app/applet/lib/services/ui_helpers.dart
 file:///app/applet/lib/services/whatsapp_service.dart
+file:///app/applet/lib/widgets/update_dialog.dart
 file:///opt/flutter/bin/cache/dart-sdk/lib/libraries.json
 file:///opt/flutter/bin/cache/flutter_web_sdk/kernel/dart2js_platform.dill
 file:///opt/flutter/packages/flutter/lib/animation.dart
@@ -1176,6 +1177,16 @@ file:///root/.pub-cache/hosted/pub.dev/mime-2.1.0/lib/src/media_types.g.dart
 file:///root/.pub-cache/hosted/pub.dev/mime-2.1.0/lib/src/mime_shared.dart
 file:///root/.pub-cache/hosted/pub.dev/mime-2.1.0/lib/src/mime_type.dart
 file:///root/.pub-cache/hosted/pub.dev/mime-2.1.0/lib/src/multipart_transformer.dart
+file:///root/.pub-cache/hosted/pub.dev/open_filex-5.0.0/lib/open_filex.dart
+file:///root/.pub-cache/hosted/pub.dev/open_filex-5.0.0/lib/src/common/open_result.dart
+file:///root/.pub-cache/hosted/pub.dev/open_filex-5.0.0/lib/src/web/open_filex.dart
+file:///root/.pub-cache/hosted/pub.dev/open_filex-5.0.0/lib/src/web/web.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus-10.2.2/lib/package_info_plus.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus-10.2.2/lib/src/package_info_plus_linux.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus-10.2.2/lib/src/package_info_plus_web.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0/lib/method_channel_package_info.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0/lib/package_info_data.dart
+file:///root/.pub-cache/hosted/pub.dev/package_info_plus_platform_interface-4.1.0/lib/package_info_platform_interface.dart
 file:///root/.pub-cache/hosted/pub.dev/path-1.9.1/lib/path.dart
 file:///root/.pub-cache/hosted/pub.dev/path-1.9.1/lib/src/characters.dart
 file:///root/.pub-cache/hosted/pub.dev/path-1.9.1/lib/src/context.dart
