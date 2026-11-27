@@ -39,16 +39,15 @@ class ExcelImportResult {
 
 class ExcelImportService {
   static Future<ExcelImportResult?> pickAndParseFile() async {
-    final result = await FilePicker.pickFiles(
+    final files = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx', 'csv'],
-      withData: true,
     );
-    if (result == null || result.files.isEmpty) return null;
+    if (files.isEmpty) return null;
 
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) return null;
+    final file = files.first;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return null;
 
     final name = file.name;
     final lower = name.toLowerCase();

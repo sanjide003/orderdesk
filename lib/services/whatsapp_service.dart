@@ -33,6 +33,6 @@ class WhatsAppService {
   }
 
   static Future<void> shareMessage(String message) async {
-    await Share.share(message);
+    await SharePlus.instance.share(ShareParams(text: message));
   }
 }
