@@ -27,7 +27,7 @@ jobs:
           cache: true
       - name: Generate Android Platform Files (com.wapp.orderdesk)
         run: |
-          if [ ! -d "android" ]; then
+          if [ ! -f "android/app/src/main/AndroidManifest.xml" ]; then
             flutter create --platforms=android --org com.wapp --project-name orderdesk .
           fi
       - name: Copy google-services.json, Permissions & Skip Slow Release Lint
