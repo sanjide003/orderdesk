@@ -51,7 +51,10 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
 
   Future<void> _checkCachedApk() async {
     if (kIsWeb) return;
-    final path = await AppVersionService.getDownloadedApkPath();
+    final path = await AppVersionService.getDownloadedApkPath(
+      expectedBuildNumber: widget.latest?.buildNumber,
+      installedBuildNumber: widget.installed.buildNumber,
+    );
     final canInstall = await AppVersionService.canRequestPackageInstalls();
     if (!mounted) return;
     setState(() {
@@ -77,7 +80,10 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
       _statusText = widget.s.t('opening_installer');
     });
 
-    final res = await AppVersionService.installExistingApk();
+    final res = await AppVersionService.installExistingApk(
+      expectedBuildNumber: widget.latest?.buildNumber,
+      installedBuildNumber: widget.installed.buildNumber,
+    );
     if (!mounted) return;
     if (res.permissionRequired) {
       setState(() {
@@ -90,6 +96,7 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
     } else {
       setState(() {
         _downloading = false;
+        _hasDownloadedApk = false;
         _error = res.errorMessage ?? 'Install failed';
       });
     }
@@ -116,6 +123,8 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
 
     final res = await AppVersionService.downloadAndInstallApk(
       customUrl: widget.latest?.apkUrl,
+      expectedBuildNumber: widget.latest?.buildNumber,
+      installedBuildNumber: widget.installed.buildNumber,
       onProgress: (p) {
         if (!mounted) return;
         setState(() {
@@ -139,6 +148,7 @@ class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver
     } else {
       setState(() {
         _downloading = false;
+        _hasDownloadedApk = false;
         _error = res.errorMessage ?? 'Update failed';
       });
     }

@@ -225,8 +225,19 @@ class AppVersionService {
     return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
-  static Future<String?> getDownloadedApkPath() =>
-      AndroidUpdaterBridge.getDownloadedApkPath();
+  static Future<void> cleanupStaleApks({int? installedBuildNumber}) =>
+      AndroidUpdaterBridge.cleanupStaleApks(
+        installedBuildNumber: installedBuildNumber,
+      );
+
+  static Future<String?> getDownloadedApkPath({
+    int? expectedBuildNumber,
+    int? installedBuildNumber,
+  }) =>
+      AndroidUpdaterBridge.getDownloadedApkPath(
+        expectedBuildNumber: expectedBuildNumber,
+        installedBuildNumber: installedBuildNumber,
+      );
 
   static Future<bool> canRequestPackageInstalls() =>
       AndroidUpdaterBridge.canRequestPackageInstalls();
@@ -234,11 +245,19 @@ class AppVersionService {
   static Future<bool> openInstallPermissionSettings() =>
       AndroidUpdaterBridge.openInstallPermissionSettings();
 
-  static Future<AndroidDownloadResult> installExistingApk() =>
-      AndroidUpdaterBridge.installExistingApk();
+  static Future<AndroidDownloadResult> installExistingApk({
+    int? expectedBuildNumber,
+    int? installedBuildNumber,
+  }) =>
+      AndroidUpdaterBridge.installExistingApk(
+        expectedBuildNumber: expectedBuildNumber,
+        installedBuildNumber: installedBuildNumber,
+      );
 
   static Future<AndroidDownloadResult> downloadAndInstallApk({
     String? customUrl,
+    int? expectedBuildNumber,
+    int? installedBuildNumber,
     required void Function(double progress) onProgress,
   }) async {
     final url = (customUrl != null && customUrl.isNotEmpty)
@@ -257,6 +276,8 @@ class AppVersionService {
 
     return AndroidUpdaterBridge.downloadAndInstall(
       apkUrl: url,
+      expectedBuildNumber: expectedBuildNumber,
+      installedBuildNumber: installedBuildNumber,
       onProgress: onProgress,
     );
   }

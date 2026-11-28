@@ -56,6 +56,9 @@ class _HomeShellState extends State<HomeShell> {
     _checkedStartupUpdate = true;
 
     final installed = await AppVersionService.getInstalledVersion();
+    await AppVersionService.cleanupStaleApks(
+      installedBuildNumber: installed.buildNumber,
+    );
     final latest = await AppVersionService.fetchLatest();
     if (!mounted || latest == null) return;
     if (AppVersionService.isRemoteNewer(latest, installed)) {

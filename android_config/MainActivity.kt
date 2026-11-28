@@ -78,6 +78,42 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "getApkVersionInfo" -> {
+                        val path = call.argument<String>("path")
+                        if (path.isNullOrBlank()) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            val file = File(path)
+                            if (!file.exists() || file.length() <= 100000L) {
+                                result.success(null)
+                                return@setMethodCallHandler
+                            }
+                            @Suppress("DEPRECATION")
+                            val archiveInfo = packageManager.getPackageArchiveInfo(path, 0)
+                            if (archiveInfo == null) {
+                                result.success(null)
+                                return@setMethodCallHandler
+                            }
+                            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                archiveInfo.longVersionCode
+                            } else {
+                                @Suppress("DEPRECATION")
+                                archiveInfo.versionCode.toLong()
+                            }
+                            result.success(
+                                mapOf(
+                                    "packageName" to (archiveInfo.packageName ?: ""),
+                                    "version" to (archiveInfo.versionName ?: ""),
+                                    "buildNumber" to versionCode.toInt()
+                                )
+                            )
+                        } catch (_: Exception) {
+                            result.success(null)
+                        }
+                    }
+
                     "installApk" -> {
                         val path = call.argument<String>("path")
                         if (path.isNullOrBlank()) {
@@ -86,7 +122,7 @@ class MainActivity : FlutterActivity() {
                         }
                         try {
                             val apkFile = File(path)
-                            if (!apkFile.exists()) {
+                            if (!apkFile.exists() || apkFile.length() <= 100000L) {
                                 result.error("FILE_NOT_FOUND", "APK file not found", null)
                                 return@setMethodCallHandler
                             }

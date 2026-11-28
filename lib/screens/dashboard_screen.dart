@@ -52,6 +52,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkVersion({bool showFeedback = true}) async {
     setState(() => _checking = true);
     final installed = await AppVersionService.getInstalledVersion();
+    await AppVersionService.cleanupStaleApks(
+      installedBuildNumber: installed.buildNumber,
+    );
     final info = await AppVersionService.fetchLatest();
     if (!mounted) return;
     setState(() {
@@ -103,7 +106,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pendingPay =
         orders.where((o) => o.status == 'Payment Pending').length;
     final toDispatch = orders.where((o) => o.status == 'Paid').length;
-    final reviewDue = orders.where((o) => o.isReviewDue).length;
     final revenue = orders
         .where((o) => o.isPaidOrBeyond)
         .fold<double>(0, (sum, o) => sum + o.totalAmount);
@@ -419,68 +421,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             GridView.count(
-              crossAxisCount: isWide ? 2 : 2,
+              crossAxisCount: 3,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: isWide ? 2.4 : 1.9,
+              childAspectRatio: isWide ? 1.25 : 0.96,
               children: [
                 _ModuleTile(
                   icon: Icons.format_list_numbered_rounded,
                   color: const Color(0xFF16A34A),
                   title: s.t('tile_templates'),
-                  subtitle: s.t('tile_templates_sub'),
                   onTap: () => widget.onNavigateTab(1),
                 ),
                 _ModuleTile(
                   icon: Icons.add_shopping_cart_rounded,
                   color: primary,
                   title: s.t('tile_new_order'),
-                  subtitle: s.t('tile_new_order_sub'),
                   onTap: () => widget.onNavigateTab(2),
                 ),
                 _ModuleTile(
                   icon: Icons.receipt_long_rounded,
                   color: Colors.blue.shade700,
                   title: s.t('tile_orders'),
-                  subtitle:
-                      '$toDispatch ${s.t("to_dispatch")} · $reviewDue ${s.t("review_due")}',
                   onTap: () => widget.onNavigateTab(3),
                 ),
                 _ModuleTile(
                   icon: Icons.inventory_2_rounded,
                   color: Colors.amber.shade800,
                   title: s.t('tile_products'),
-                  subtitle: s.t('tile_products_sub'),
                   onTap: widget.onOpenProducts,
                 ),
                 _ModuleTile(
                   icon: Icons.people_alt_rounded,
                   color: Colors.indigo.shade700,
                   title: s.t('tile_customers'),
-                  subtitle: s.t('tile_customers_sub'),
                   onTap: widget.onOpenCustomers,
                 ),
                 _ModuleTile(
                   icon: Icons.delete_sweep_rounded,
                   color: Colors.red.shade700,
                   title: s.t('tile_bin'),
-                  subtitle: s.t('tile_bin_sub'),
                   onTap: widget.onOpenBin,
                 ),
                 _ModuleTile(
                   icon: Icons.storefront_rounded,
                   color: Colors.purple.shade700,
                   title: s.t('tile_profile'),
-                  subtitle: s.t('tile_profile_sub'),
                   onTap: widget.onOpenSettings,
                 ),
                 _ModuleTile(
                   icon: Icons.tune_rounded,
                   color: Colors.blueGrey.shade700,
                   title: s.t('tile_settings'),
-                  subtitle: s.t('tile_settings_sub'),
                   onTap: widget.onOpenSettings,
                 ),
               ],
@@ -766,14 +759,12 @@ class _ModuleTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String title;
-  final String subtitle;
   final VoidCallback onTap;
 
   const _ModuleTile({
     required this.icon,
     required this.color,
     required this.title,
-    required this.subtitle,
     required this.onTap,
   });
 
@@ -783,41 +774,36 @@ class _ModuleTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.black12),
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 20, color: color),
+              child: Icon(icon, size: 22, color: color),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 12),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style:
-                          TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+                height: 1.2,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

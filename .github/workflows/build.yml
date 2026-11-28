@@ -65,10 +65,11 @@ jobs:
         run: |
           mkdir -p release-assets
           cp build/app/outputs/flutter-apk/app-release.apk release-assets/orderdesk-latest.apk
+          cp build/app/outputs/flutter-apk/app-release.apk "release-assets/orderdesk-b${BUILD_NUMBER}.apk"
           VER_LINE=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
           NOW_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          python3 -c "import json; json.dump({'version': '$VER_NAME', 'buildNumber': int('$BUILD_NUMBER'), 'apkUrl': 'https://github.com/${{ github.repository }}/releases/latest/download/orderdesk-latest.apk', 'updatedAt': '$NOW_UTC'}, open('release-assets/version.json', 'w'), indent=2)"
+          python3 -c "import json; json.dump({'version': '$VER_NAME', 'buildNumber': int('$BUILD_NUMBER'), 'apkUrl': 'https://github.com/${{ github.repository }}/releases/download/latest/orderdesk-b${BUILD_NUMBER}.apk', 'updatedAt': '$NOW_UTC'}, open('release-assets/version.json', 'w'), indent=2)"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -83,7 +84,11 @@ jobs:
           VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
           if gh release view latest >/dev/null 2>&1; then
             gh release edit latest --title "OrderDesk v${VER_NAME} (Build ${BUILD_NUMBER})" --notes "Signed release APK for OrderDesk with in-app self-update."
+            OLD_ASSETS=$(gh release view latest --json assets --jq '.assets[].name' | grep '^orderdesk-b[0-9]\+\.apk$' || true)
+            for asset in $OLD_ASSETS; do
+              gh release delete-asset latest "$asset" --yes || true
+            done
           else
             gh release create latest --title "OrderDesk v${VER_NAME} (Build ${BUILD_NUMBER})" --notes "Signed release APK for OrderDesk with in-app self-update."
           fi
-          gh release upload latest release-assets/orderdesk-latest.apk release-assets/version.json --clobber
+          gh release upload latest release-assets/orderdesk-latest.apk "release-assets/orderdesk-b${BUILD_NUMBER}.apk" release-assets/version.json --clobber
