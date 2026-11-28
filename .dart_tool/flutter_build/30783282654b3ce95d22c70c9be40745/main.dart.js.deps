@@ -6,14 +6,17 @@ file:///app/applet/lib/main.dart
 file:///app/applet/lib/models/business_profile.dart
 file:///app/applet/lib/models/customer_model.dart
 file:///app/applet/lib/models/delivery_rules.dart
+file:///app/applet/lib/models/message_log_model.dart
 file:///app/applet/lib/models/order_model.dart
 file:///app/applet/lib/models/product_model.dart
 file:///app/applet/lib/models/template_model.dart
 file:///app/applet/lib/screens/bin_screen.dart
+file:///app/applet/lib/screens/bulk_whatsapp_screen.dart
 file:///app/applet/lib/screens/customers_screen.dart
 file:///app/applet/lib/screens/dashboard_screen.dart
 file:///app/applet/lib/screens/home_shell.dart
 file:///app/applet/lib/screens/login_screen.dart
+file:///app/applet/lib/screens/message_history_screen.dart
 file:///app/applet/lib/screens/new_order_screen.dart
 file:///app/applet/lib/screens/orders_screen.dart
 file:///app/applet/lib/screens/products_screen.dart
@@ -31,6 +34,7 @@ file:///app/applet/lib/services/ui_helpers.dart
 file:///app/applet/lib/services/web_pwa_bridge_web.dart
 file:///app/applet/lib/services/whatsapp_formatter.dart
 file:///app/applet/lib/services/whatsapp_service.dart
+file:///app/applet/lib/widgets/message_history_view.dart
 file:///app/applet/lib/widgets/update_dialog.dart
 file:///app/applet/lib/widgets/whatsapp_rich_text.dart
 file:///opt/flutter/bin/cache/flutter_web_sdk/kernel/dart2js_platform.dill

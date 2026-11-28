@@ -328,23 +328,54 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                       style:
                           TextStyle(fontSize: 11, color: Colors.grey.shade700)),
                   const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 5,
-                    runSpacing: 5,
-                    children: vars
-                        .map((v) => ActionChip(
-                              label:
-                                  Text(v, style: const TextStyle(fontSize: 10)),
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () {
-                                final c = currentBodyCtrl();
-                                WhatsAppFormatter.insertAtCursor(c, v);
-                                prevBodies[activeLangTab] = c.text;
-                                bodyFocus.requestFocus();
-                                if (showPreview) setModalState(() {});
-                              },
-                            ))
-                        .toList(),
+                  Builder(
+                    builder: (context) {
+                      final rows = [<String>[], <String>[], <String>[]];
+                      for (int i = 0; i < vars.length; i++) {
+                        rows[i % 3].add(vars[i]);
+                      }
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (int r = 0; r < 3; r++)
+                              if (rows[r].isNotEmpty)
+                                Padding(
+                                  padding:
+                                      EdgeInsets.only(bottom: r < 2 ? 5 : 0),
+                                  child: Row(
+                                    children: [
+                                      for (final v in rows[r])
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 6),
+                                          child: ActionChip(
+                                            label: Text(v,
+                                                style: const TextStyle(
+                                                    fontSize: 10)),
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                            onPressed: () {
+                                              final c = currentBodyCtrl();
+                                              WhatsAppFormatter.insertAtCursor(
+                                                  c, v);
+                                              prevBodies[activeLangTab] =
+                                                  c.text;
+                                              bodyFocus.requestFocus();
+                                              if (showPreview) {
+                                                setModalState(() {});
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -673,6 +704,13 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                                 onPressed: () => WhatsAppService.openDirectChat(
                                   phone: _phoneCtrl.text,
                                   message: rendered,
+                                  logMeta: WhatsAppLogMeta(
+                                    templateId: tpl.id,
+                                    templateTitle: tpl.title,
+                                    stage: tpl.stage,
+                                    lang: lang,
+                                    mode: 'template',
+                                  ),
                                 ),
                                 icon:
                                     const Icon(Icons.send_rounded, size: 15),

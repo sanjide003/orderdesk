@@ -108,6 +108,11 @@ class TemplateEngine {
     double discountPercent = 0,
     double deliveryCharge = 0,
     double totalAmount = 0,
+    double paidAmount = 0,
+    double balanceDue = 0,
+    String customerName = '',
+    String customerPhone = '',
+    String customerAddress = '',
     String packSummary = '',
     String trackingId = 'RXXXXXXXXXX',
     bool includeOrderBillHeader = false,
@@ -146,6 +151,10 @@ class TemplateEngine {
       '{{courier_name}}': profile.courierName,
       '{{tracking_url}}': profile.trackingUrl,
       '{{payment_bank}}': profile.paymentBankLabel,
+      '{{customer_name}}':
+          customerName.trim().isEmpty ? 'Customer' : customerName.trim(),
+      '{{customer_phone}}': customerPhone.trim(),
+      '{{customer_address}}': customerAddress.trim(),
       '{{product_name}}': activeProd?.name ?? profile.brandName,
       '{{product_origin}}': activeProd?.origin ?? '',
       '{{product_highlights}}': activeProd?.highlights.join('\n') ?? '',
@@ -159,6 +168,8 @@ class TemplateEngine {
       '{{subtotal}}': formatMoney(subtotal),
       '{{delivery_charge}}': deliveryLine,
       '{{total_amount}}': formatMoney(totalAmount),
+      '{{paid_amount}}': formatMoney(paidAmount),
+      '{{balance_due}}': formatMoney(balanceDue),
       '{{pack_summary}}': packSummary.isNotEmpty
           ? packSummary
           : (activeProd?.name ?? 'Order'),
@@ -191,6 +202,7 @@ class TemplateEngine {
 
   static List<String> allAvailableVariables(BusinessProfile profile) {
     final base = [
+      '{{customer_name}}',
       '{{brand_name}}',
       '{{tagline}}',
       '{{product_name}}',
@@ -203,6 +215,8 @@ class TemplateEngine {
       '{{discount}}',
       '{{delivery_charge}}',
       '{{total_amount}}',
+      '{{paid_amount}}',
+      '{{balance_due}}',
       '{{pack_summary}}',
       '{{tracking_id}}',
       '{{tracking_url}}',
@@ -212,6 +226,8 @@ class TemplateEngine {
       '{{website}}',
       '{{instagram_handle}}',
       '{{instagram_url}}',
+      '{{customer_phone}}',
+      '{{customer_address}}',
     ];
     for (final cf in profile.customFields) {
       if (cf.key.isNotEmpty) {

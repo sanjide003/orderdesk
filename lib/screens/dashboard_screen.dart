@@ -16,6 +16,8 @@ class DashboardScreen extends StatefulWidget {
   final void Function(int tabIndex) onNavigateTab;
   final VoidCallback onOpenProducts;
   final VoidCallback onOpenCustomers;
+  final VoidCallback onOpenBulkWhatsApp;
+  final VoidCallback onOpenMessageHistory;
   final VoidCallback onOpenBin;
   final VoidCallback onOpenSettings;
 
@@ -27,6 +29,8 @@ class DashboardScreen extends StatefulWidget {
     required this.onNavigateTab,
     required this.onOpenProducts,
     required this.onOpenCustomers,
+    required this.onOpenBulkWhatsApp,
+    required this.onOpenMessageHistory,
     required this.onOpenBin,
     required this.onOpenSettings,
   });
@@ -103,12 +107,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             o.createdAt.month == now.month &&
             o.createdAt.day == now.day)
         .length;
-    final pendingPay =
-        orders.where((o) => o.status == 'Payment Pending').length;
-    final toDispatch = orders.where((o) => o.status == 'Paid').length;
-    final revenue = orders
-        .where((o) => o.isPaidOrBeyond)
-        .fold<double>(0, (sum, o) => sum + o.totalAmount);
+    final pendingPay = orders.where((o) => o.isPaymentPending).length;
+    final toDispatch = orders
+        .where((o) =>
+            o.status == 'New Inquiry' ||
+            o.status == 'Address Received' ||
+            o.status == 'Confirmed')
+        .length;
+    final revenue = orders.fold<double>(
+        0, (sum, o) => sum + o.effectivePaidAmount);
 
     final hasUpdate = _latestInfo != null &&
         AppVersionService.isRemoteNewer(_latestInfo!, _installed);
@@ -299,8 +306,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       subtitle: Text(
                         o.itemsSummary.isEmpty
-                            ? o.status
-                            : '${o.itemsSummary}  ·  ${o.status}',
+                            ? '${o.status} · ${o.paymentStatus}'
+                            : '${o.itemsSummary} · ${o.status} · ${o.paymentStatus}',
                         style: TextStyle(
                             fontSize: 11.5, color: Colors.grey.shade700),
                         maxLines: 1,
@@ -392,11 +399,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(o.status,
+                                Expanded(
+                                  child: Text(
+                                    '${o.status} · ${o.paymentStatus}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: primary)),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: primary,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
                                 Text(DateFormat('dd MMM').format(o.createdAt),
                                     style: TextStyle(
                                         fontSize: 10,
@@ -459,21 +474,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onTap: widget.onOpenCustomers,
                 ),
                 _ModuleTile(
+                  icon: Icons.campaign_rounded,
+                  color: const Color(0xFF0D9488),
+                  title: s.t('tile_bulk_whatsapp'),
+                  onTap: widget.onOpenBulkWhatsApp,
+                ),
+                _ModuleTile(
+                  icon: Icons.history_rounded,
+                  color: Colors.deepPurple.shade600,
+                  title: s.t('tile_message_logs'),
+                  onTap: widget.onOpenMessageHistory,
+                ),
+                _ModuleTile(
                   icon: Icons.delete_sweep_rounded,
                   color: Colors.red.shade700,
                   title: s.t('tile_bin'),
                   onTap: widget.onOpenBin,
                 ),
                 _ModuleTile(
-                  icon: Icons.storefront_rounded,
-                  color: Colors.purple.shade700,
-                  title: s.t('tile_profile'),
-                  onTap: widget.onOpenSettings,
-                ),
-                _ModuleTile(
                   icon: Icons.tune_rounded,
                   color: Colors.blueGrey.shade700,
-                  title: s.t('tile_settings'),
+                  title: s.t('tile_business_app'),
                   onTap: widget.onOpenSettings,
                 ),
               ],

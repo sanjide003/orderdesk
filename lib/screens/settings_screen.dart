@@ -44,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late DeliveryMode _mode;
   late int _colorHex;
   late List<CustomProfileField> _customFields;
+  final List<TextEditingController> _customValueCtrls = [];
   bool _saving = false;
 
   static const List<int> _presetColors = [
@@ -91,6 +92,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _mode = rules.mode;
     _colorHex = widget.service.colorNotifier.value ?? profile.primaryColorHex;
     _customFields = List<CustomProfileField>.from(profile.customFields);
+    for (final c in _customValueCtrls) {
+      c.dispose();
+    }
+    _customValueCtrls.clear();
+    for (final cf in _customFields) {
+      _customValueCtrls.add(TextEditingController(text: cf.value));
+    }
   }
 
   @override
@@ -108,29 +116,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _flatCtrl.dispose();
     _thresholdCtrl.dispose();
     _belowCtrl.dispose();
+    for (final c in _customValueCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _addCustomFieldDialog(AppStrings s) async {
-    final labelCtrl = TextEditingController();
-    final valueCtrl = TextEditingController();
-    final added = await showDialog<CustomProfileField>(
+  Future<void> _openCustomFieldDialog(AppStrings s, {int? editIndex}) async {
+    final existing = editIndex != null ? _customFields[editIndex] : null;
+    final currentVal = editIndex != null
+        ? _customValueCtrls[editIndex].text
+        : '';
+    final labelCtrl = TextEditingController(text: existing?.label ?? '');
+    final valueCtrl = TextEditingController(text: currentVal);
+    final result = await showDialog<CustomProfileField>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(s.t('add_custom_field')),
+        title: Text(existing == null
+            ? s.t('add_custom_field')
+            : s.t('edit_custom_field')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: labelCtrl,
               decoration: InputDecoration(
-                  labelText: s.t('field_label'), isDense: true),
+                labelText: s.t('field_label'),
+                isDense: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             TextField(
               controller: valueCtrl,
               decoration: InputDecoration(
-                  labelText: s.t('field_value'), isDense: true),
+                labelText: s.t('field_value'),
+                isDense: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ],
         ),
@@ -156,8 +181,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-    if (added != null) {
-      setState(() => _customFields.add(added));
+    if (result != null) {
+      setState(() {
+        if (editIndex != null) {
+          _customFields[editIndex] = result;
+          _customValueCtrls[editIndex].text = result.value;
+        } else {
+          _customFields.add(result);
+          _customValueCtrls.add(TextEditingController(text: result.value));
+        }
+      });
     }
   }
 
@@ -174,6 +207,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _saving = true);
     try {
+      final syncedCustomFields = [
+        for (int i = 0; i < _customFields.length; i++)
+          CustomProfileField(
+            key: _customFields[i].key,
+            label: _customFields[i].label,
+            value: i < _customValueCtrls.length
+                ? _customValueCtrls[i].text.trim()
+                : _customFields[i].value,
+          ),
+      ];
       await widget.service.saveBusinessProfile(
         latestProfile.copyWith(
           brandName: _brandCtrl.text.trim(),
@@ -189,7 +232,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           appLanguage:
               widget.service.languageNotifier.value ?? latestProfile.appLanguage,
           primaryColorHex: _colorHex,
-          customFields: _customFields,
+          customFields: syncedCustomFields,
         ),
       );
       await widget.service.saveDeliveryRules(
@@ -273,7 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               appBar: widget.embedded
                   ? null
                   : AppBar(
-                      title: Text(s.t('tile_settings')),
+                      title: Text(s.t('tile_business_app')),
                       backgroundColor: primary,
                       foregroundColor: Colors.white,
                     ),
@@ -375,7 +418,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _CardBox(
                         title: s.t('custom_fields'),
                         trailing: TextButton.icon(
-                          onPressed: () => _addCustomFieldDialog(s),
+                          onPressed: () => _openCustomFieldDialog(s),
                           icon: const Icon(Icons.add, size: 16),
                           label: Text(s.t('add_custom_field'),
                               style: const TextStyle(fontSize: 12)),
@@ -387,40 +430,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey.shade600)),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 10),
                             ..._customFields.asMap().entries.map((entry) {
                               final i = entry.key;
                               final cf = entry.value;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF4F7F6),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                              final ctrl = _customValueCtrls[i];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
                                 child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('${cf.label}  ({{${cf.key}}})',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 12)),
-                                          Text(cf.value,
-                                              style: TextStyle(
-                                                  fontSize: 11,
-                                                  color:
-                                                      Colors.grey.shade700)),
-                                        ],
+                                      child: TextField(
+                                        controller: ctrl,
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              '${cf.label} ({{${cf.key}}})',
+                                          isDense: true,
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                        ),
                                       ),
                                     ),
+                                    const SizedBox(width: 4),
                                     IconButton(
+                                      tooltip: s.t('edit'),
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 18),
+                                      visualDensity: VisualDensity.compact,
+                                      onPressed: () => _openCustomFieldDialog(
+                                          s,
+                                          editIndex: i),
+                                    ),
+                                    IconButton(
+                                      tooltip: s.t('delete'),
                                       icon: const Icon(Icons.delete_outline,
-                                          size: 17, color: Colors.red),
+                                          size: 18, color: Colors.red),
                                       visualDensity: VisualDensity.compact,
                                       onPressed: () async {
                                         final ok =
@@ -433,8 +480,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                           isDestructive: true,
                                         );
                                         if (ok) {
-                                          setState(
-                                              () => _customFields.removeAt(i));
+                                          setState(() {
+                                            _customFields.removeAt(i);
+                                            _customValueCtrls
+                                                .removeAt(i)
+                                                .dispose();
+                                          });
                                         }
                                       },
                                     ),

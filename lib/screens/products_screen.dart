@@ -47,6 +47,97 @@ class ProductsScreen extends StatelessWidget {
     }
   }
 
+  Future<ProductPack?> _showPackDialog(
+    BuildContext context,
+    AppStrings s, {
+    ProductPack? existingPack,
+  }) {
+    final labelC = TextEditingController(text: existingPack?.label ?? '');
+    final priceC = TextEditingController(
+      text: existingPack != null ? '${existingPack.price.toInt()}' : '',
+    );
+    final taxC = TextEditingController(
+      text: existingPack?.taxNote ?? '5% GST incl.',
+    );
+    final delC = TextEditingController(
+      text: existingPack != null ? '${existingPack.deliveryCharge.toInt()}' : '0',
+    );
+    return showDialog<ProductPack>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        title: Text(
+          existingPack == null ? s.t('add_pack') : s.t('edit_pack'),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelC,
+                decoration: InputDecoration(
+                  labelText: s.t('pack_size'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: priceC,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.t('price_inr'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: taxC,
+                decoration: InputDecoration(
+                  labelText: s.t('tax_note'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: delC,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: s.t('pack_delivery'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: Text(s.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dCtx,
+              ProductPack(
+                label: labelC.text.trim(),
+                price: double.tryParse(priceC.text) ?? 0,
+                taxNote: taxC.text.trim(),
+                deliveryCharge: double.tryParse(delC.text) ?? 0,
+              ),
+            ),
+            child: Text(s.t('save')),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openEditor(
       BuildContext context, AppStrings s, [ProductModel? existing]) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
@@ -130,6 +221,22 @@ class ProductsScreen extends StatelessWidget {
                           ),
                         ),
                         IconButton(
+                          tooltip: s.t('edit'),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () async {
+                            final edited = await _showPackDialog(
+                              ctx,
+                              s,
+                              existingPack: p,
+                            );
+                            if (edited != null && edited.label.isNotEmpty) {
+                              setModalState(() => packs[i] = edited);
+                            }
+                          },
+                        ),
+                        IconButton(
+                          tooltip: s.t('delete'),
                           icon: const Icon(Icons.delete_outline,
                               size: 18, color: Colors.red),
                           visualDensity: VisualDensity.compact,
@@ -155,61 +262,7 @@ class ProductsScreen extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
                     onPressed: () async {
-                      final labelC = TextEditingController();
-                      final priceC = TextEditingController();
-                      final taxC = TextEditingController(text: '5% GST incl.');
-                      final delC = TextEditingController(text: '0');
-                      final added = await showDialog<ProductPack>(
-                        context: ctx,
-                        builder: (dCtx) => AlertDialog(
-                          title: Text(s.t('add_pack')),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextField(
-                                  controller: labelC,
-                                  decoration: InputDecoration(
-                                      labelText: s.t('pack_size'),
-                                      isDense: true)),
-                              TextField(
-                                  controller: priceC,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                      labelText: s.t('price_inr'),
-                                      isDense: true)),
-                              TextField(
-                                  controller: taxC,
-                                  decoration: InputDecoration(
-                                      labelText: s.t('tax_note'),
-                                      isDense: true)),
-                              TextField(
-                                  controller: delC,
-                                  keyboardType: TextInputType.number,
-                                  decoration: InputDecoration(
-                                      labelText: s.t('pack_delivery'),
-                                      isDense: true)),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                                onPressed: () => Navigator.pop(dCtx),
-                                child: Text(s.t('cancel'))),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(
-                                dCtx,
-                                ProductPack(
-                                  label: labelC.text.trim(),
-                                  price: double.tryParse(priceC.text) ?? 0,
-                                  taxNote: taxC.text.trim(),
-                                  deliveryCharge:
-                                      double.tryParse(delC.text) ?? 0,
-                                ),
-                              ),
-                              child: Text(s.t('save')),
-                            ),
-                          ],
-                        ),
-                      );
+                      final added = await _showPackDialog(ctx, s);
                       if (added != null && added.label.isNotEmpty) {
                         setModalState(() => packs.add(added));
                       }

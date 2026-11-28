@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/business_profile.dart';
 import '../models/customer_model.dart';
 import '../models/delivery_rules.dart';
+import '../models/message_log_model.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/template_model.dart';
@@ -256,6 +257,71 @@ class FirestoreService {
         .set(data, SetOptions(merge: true));
   }
 
+  Future<void> updateOrderPayment({
+    required String orderId,
+    required String paymentStatus,
+    required double paidAmount,
+  }) {
+    final data = <String, dynamic>{
+      'paymentStatus': paymentStatus,
+      'paidAmount': paidAmount,
+      'paidAt': paymentStatus == 'Pending'
+          ? null
+          : Timestamp.fromDate(DateTime.now()),
+    };
+    return _db
+        .collection('orders')
+        .doc(orderId)
+        .set(data, SetOptions(merge: true));
+  }
+
+  // -------------------- WhatsApp Message Logs --------------------
+
+  Stream<List<MessageLogModel>> watchMessageLogs() {
+    return _db
+        .collection('message_logs')
+        .orderBy('sentAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => MessageLogModel.fromMap(d.id, d.data()))
+            .toList());
+  }
+
+  Future<void> logMessageSend({
+    required String phone,
+    String recipientName = '',
+    String orderId = '',
+    String customerId = '',
+    String templateId = '',
+    String templateTitle = '',
+    String stage = '',
+    String lang = '',
+    String messagePreview = '',
+    String mode = 'direct',
+    DateTime? sentAt,
+  }) {
+    final norm = normalizePhoneKey(phone);
+    final resolvedCustomerId = customerId.isNotEmpty
+        ? customerId
+        : (norm.isNotEmpty ? 'cust_$norm' : '');
+    final log = MessageLogModel(
+      id: '',
+      recipientName: recipientName.trim(),
+      phone: phone.trim(),
+      normalizedPhone: norm,
+      orderId: orderId.trim(),
+      customerId: resolvedCustomerId,
+      templateId: templateId.trim(),
+      templateTitle: templateTitle.trim(),
+      stage: stage.trim(),
+      lang: lang.trim(),
+      messagePreview: messagePreview.trim(),
+      mode: mode,
+      sentAt: sentAt ?? DateTime.now(),
+    );
+    return _db.collection('message_logs').add(log.toMap());
+  }
+
   Future<void> softDeleteOrder(String orderId) {
     return _db.collection('orders').doc(orderId).set(
       {
@@ -418,9 +484,12 @@ class FirestoreService {
       }
 
       if (saveOrders) {
-        final status = OrderModel.statuses.contains(row.status)
-            ? row.status
-            : defaultOrderStatus;
+        final (resolvedStatus, resolvedPayment, resolvedPaidAmt) =
+            OrderModel.resolveLegacyStatuses(
+          rawStatus:
+              row.status.trim().isEmpty ? defaultOrderStatus : row.status.trim(),
+          totalAmount: row.amount,
+        );
         final items = row.productName.isNotEmpty
             ? [
                 OrderItem(
@@ -444,7 +513,10 @@ class FirestoreService {
           subtotal: row.amount,
           deliveryCharge: 0,
           totalAmount: row.amount,
-          status: status,
+          status: resolvedStatus,
+          paymentStatus: resolvedPayment,
+          paidAmount: resolvedPaidAmt,
+          paidAt: resolvedPayment == 'Pending' ? null : now,
           notes: row.notes,
           createdAt: now,
         );

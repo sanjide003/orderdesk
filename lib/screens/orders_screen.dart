@@ -8,6 +8,7 @@ import '../services/firestore_service.dart';
 import '../services/template_engine.dart';
 import '../services/ui_helpers.dart';
 import '../services/whatsapp_service.dart';
+import '../widgets/message_history_view.dart';
 import 'bin_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class OrdersScreen extends StatefulWidget {
   final List<OrderModel> orders;
   final AppStrings s;
   final VoidCallback? onOpenBin;
+  final VoidCallback? onOpenBulkPending;
 
   const OrdersScreen({
     super.key,
@@ -28,6 +30,7 @@ class OrdersScreen extends StatefulWidget {
     required this.orders,
     required this.s,
     this.onOpenBin,
+    this.onOpenBulkPending,
   });
 
   @override
@@ -35,7 +38,8 @@ class OrdersScreen extends StatefulWidget {
 }
 
 class _OrdersScreenState extends State<OrdersScreen> {
-  String _filterStatus = ''; // '' = All
+  String _filterStatus = ''; // '' = All Order Statuses
+  String _filterPayment = ''; // '' = All Payment Statuses
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
 
@@ -47,7 +51,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   Future<void> _openStatusDialog(OrderModel order) async {
     final s = widget.s;
-    String selectedStatus = order.status;
+    String selectedStatus = OrderModel.statuses.contains(order.status)
+        ? order.status
+        : OrderModel.statuses.first;
     final trackingCtrl = TextEditingController(text: order.trackingId);
 
     final confirmed = await showDialog<bool>(
@@ -63,12 +69,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
-                  initialValue: OrderModel.statuses.contains(selectedStatus)
-                      ? selectedStatus
-                      : OrderModel.statuses.first,
+                  initialValue: selectedStatus,
                   isDense: true,
                   decoration: InputDecoration(
-                    labelText: s.t('update_status'),
+                    labelText: s.t('order_status_label'),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10)),
                   ),
@@ -131,6 +135,113 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  Future<void> _openPaymentDialog(OrderModel order) async {
+    final s = widget.s;
+    String selectedPay = OrderModel.paymentStatuses.contains(order.paymentStatus)
+        ? order.paymentStatus
+        : 'Pending';
+    final paidCtrl = TextEditingController(
+      text: order.paidAmount > 0 ? '${order.paidAmount.toInt()}' : '',
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(s.t('change_payment_title'),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '${s.t("total")}: ${TemplateEngine.formatMoney(order.totalAmount)}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedPay,
+                  isDense: true,
+                  decoration: InputDecoration(
+                    labelText: s.t('payment_status'),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  items: OrderModel.paymentStatuses
+                      .map((st) => DropdownMenuItem(value: st, child: Text(st)))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      setDialogState(() {
+                        selectedPay = v;
+                        if (v == 'Paid') {
+                          paidCtrl.text = '${order.totalAmount.toInt()}';
+                        } else if (v == 'Pending') {
+                          paidCtrl.text = '0';
+                        }
+                      });
+                    }
+                  },
+                ),
+                if (selectedPay == 'Partial') ...[
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: paidCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: s.t('paid_amount'),
+                      prefixText: '₹',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(s.t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(s.t('confirm')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true) {
+      final paidAmt = selectedPay == 'Paid'
+          ? order.totalAmount
+          : (selectedPay == 'Partial'
+              ? (double.tryParse(paidCtrl.text.trim()) ?? 0)
+                  .clamp(0.0, order.totalAmount)
+              : 0.0);
+      try {
+        await widget.service.updateOrderPayment(
+          orderId: order.id,
+          paymentStatus: selectedPay,
+          paidAmount: paidAmt,
+        );
+        if (mounted) {
+          UiHelpers.showFeedback(context, s.t('payment_updated'));
+        }
+      } catch (_) {
+        if (mounted) {
+          UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+        }
+      }
+    }
+  }
+
   Future<void> _openEditOrderSheet(OrderModel order) async {
     final s = widget.s;
     final nameCtrl = TextEditingController(text: order.customerName);
@@ -138,130 +249,216 @@ class _OrdersScreenState extends State<OrdersScreen> {
     final addrCtrl = TextEditingController(text: order.address);
     final trackCtrl = TextEditingController(text: order.trackingId);
     final notesCtrl = TextEditingController(text: order.notes);
+    String editOrderStatus = OrderModel.statuses.contains(order.status)
+        ? order.status
+        : OrderModel.statuses.first;
+    String editPayStatus =
+        OrderModel.paymentStatuses.contains(order.paymentStatus)
+            ? order.paymentStatus
+            : 'Pending';
+    final paidAmtCtrl = TextEditingController(
+      text: order.paidAmount > 0 ? '${order.paidAmount.toInt()}' : '',
+    );
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                s.t('edit_order'),
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: s.t('customer_name'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  s.t('edit_order'),
+                  style: const TextStyle(
+                      fontSize: 17, fontWeight: FontWeight.w800),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: s.t('whatsapp_number'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: addrCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: s.t('delivery_address'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: trackCtrl,
-                decoration: InputDecoration(
-                  labelText: s.t('tracking_id'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: notesCtrl,
-                decoration: InputDecoration(
-                  labelText: s.t('notes'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(s.t('cancel')),
-                    ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: s.t('customer_name'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () async {
-                        final ok = await UiHelpers.confirmDialog(
-                          ctx,
-                          title: s.t('confirm_save'),
-                          message: s.t('save_changes_q'),
-                          confirmLabel: s.t('save'),
-                          cancelLabel: s.t('cancel'),
-                        );
-                        if (!ok) return;
-                        try {
-                          await widget.service.saveOrder(order.copyWith(
-                            customerName: nameCtrl.text.trim().isEmpty
-                                ? order.customerName
-                                : nameCtrl.text.trim(),
-                            phone: phoneCtrl.text.trim(),
-                            address: addrCtrl.text.trim(),
-                            trackingId: trackCtrl.text.trim(),
-                            notes: notesCtrl.text.trim(),
-                          ));
-                          if (ctx.mounted) Navigator.pop(ctx);
-                          if (mounted) {
-                            UiHelpers.showFeedback(
-                                context, s.t('order_updated'));
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: s.t('whatsapp_number'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: addrCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: s.t('delivery_address'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: editOrderStatus,
+                        isDense: true,
+                        decoration: InputDecoration(
+                          labelText: s.t('order_status_label'),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: OrderModel.statuses
+                            .map((st) =>
+                                DropdownMenuItem(value: st, child: Text(st)))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setModalState(() => editOrderStatus = v);
                           }
-                        } catch (_) {
-                          if (mounted) {
-                            UiHelpers.showFeedback(
-                                context, s.t('action_failed'),
-                                isError: true);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: editPayStatus,
+                        isDense: true,
+                        decoration: InputDecoration(
+                          labelText: s.t('payment_status'),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        items: OrderModel.paymentStatuses
+                            .map((st) =>
+                                DropdownMenuItem(value: st, child: Text(st)))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            setModalState(() => editPayStatus = v);
                           }
-                        }
-                      },
-                      child: Text(s.t('save')),
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                if (editPayStatus == 'Partial') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: paidAmtCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: s.t('paid_amount'),
+                      prefixText: '₹',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ],
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: trackCtrl,
+                  decoration: InputDecoration(
+                    labelText: s.t('tracking_id'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notesCtrl,
+                  decoration: InputDecoration(
+                    labelText: s.t('notes'),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(s.t('cancel')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          final ok = await UiHelpers.confirmDialog(
+                            ctx,
+                            title: s.t('confirm_save'),
+                            message: s.t('save_changes_q'),
+                            confirmLabel: s.t('save'),
+                            cancelLabel: s.t('cancel'),
+                          );
+                          if (!ok) return;
+                          final resolvedPaidAmt = editPayStatus == 'Paid'
+                              ? order.totalAmount
+                              : (editPayStatus == 'Partial'
+                                  ? (double.tryParse(paidAmtCtrl.text.trim()) ??
+                                          0)
+                                      .clamp(0.0, order.totalAmount)
+                                  : 0.0);
+                          try {
+                            await widget.service.saveOrder(order.copyWith(
+                              customerName: nameCtrl.text.trim().isEmpty
+                                  ? order.customerName
+                                  : nameCtrl.text.trim(),
+                              phone: phoneCtrl.text.trim(),
+                              address: addrCtrl.text.trim(),
+                              status: editOrderStatus,
+                              paymentStatus: editPayStatus,
+                              paidAmount: resolvedPaidAmt,
+                              paidAt: editPayStatus == 'Pending'
+                                  ? null
+                                  : (order.paidAt ?? DateTime.now()),
+                              trackingId: trackCtrl.text.trim(),
+                              notes: notesCtrl.text.trim(),
+                            ));
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('order_updated'));
+                            }
+                          } catch (_) {
+                            if (mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('action_failed'),
+                                  isError: true);
+                            }
+                          }
+                        },
+                        child: Text(s.t('save')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -301,11 +498,28 @@ class _OrdersScreenState extends State<OrdersScreen> {
       discountPercent: order.discountPercent,
       deliveryCharge: order.deliveryCharge,
       totalAmount: order.totalAmount,
+      paidAmount: order.effectivePaidAmount,
+      balanceDue: order.balanceDue,
+      customerName: order.customerName,
+      customerPhone: order.phone,
+      customerAddress: order.address,
       packSummary: order.itemsSummary,
       trackingId: trackingIdOverride ?? order.trackingId,
       includeOrderBillHeader: stage == 'payment' && order.items.isNotEmpty,
     );
-    await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
+    await WhatsAppService.openDirectChat(
+      phone: order.phone,
+      message: msg,
+      logMeta: WhatsAppLogMeta(
+        recipientName: order.customerName,
+        orderId: order.id,
+        templateId: tpl?.id ?? '',
+        templateTitle: tpl?.title ?? '',
+        stage: stage,
+        lang: lang,
+        mode: 'order_stage',
+      ),
+    );
   }
 
   Future<void> _quickSendPayment(OrderModel order) async {
@@ -323,12 +537,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
     if (!ok) return;
     try {
-      await widget.service.updateOrderStatus(
+      await widget.service.updateOrderPayment(
         orderId: order.id,
-        status: 'Paid',
+        paymentStatus: 'Paid',
+        paidAmount: order.totalAmount,
       );
       if (mounted) {
-        UiHelpers.showFeedback(context, s.t('status_updated'));
+        UiHelpers.showFeedback(context, s.t('payment_updated'));
       }
       await _openStageWhatsApp(order, 'paid');
     } catch (_) {
@@ -426,13 +641,43 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
+  Color _orderStatusColor(String status) {
+    switch (status) {
+      case 'Confirmed':
+        return Colors.blue;
+      case 'Dispatched':
+        return Colors.purple;
+      case 'Delivered':
+        return Colors.green;
+      case 'Review Sent':
+        return Colors.teal;
+      default:
+        return Colors.orange.shade800;
+    }
+  }
+
+  Color _paymentStatusColor(String payStatus) {
+    switch (payStatus) {
+      case 'Paid':
+        return Colors.green.shade700;
+      case 'Partial':
+        return Colors.amber.shade900;
+      default:
+        return Colors.red.shade700;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
     final primary = Color(widget.profile.primaryColorHex);
+    final pendingCount = widget.orders.where((o) => o.isPaymentPending).length;
 
     final filteredOrders = widget.orders.where((o) {
       if (_filterStatus.isNotEmpty && o.status != _filterStatus) {
+        return false;
+      }
+      if (_filterPayment.isNotEmpty && o.paymentStatus != _filterPayment) {
         return false;
       }
       if (_searchQuery.isNotEmpty) {
@@ -454,6 +699,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
             color: Colors.white,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -481,6 +727,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         ),
                       ),
                     ),
+                    if (widget.onOpenBulkPending != null &&
+                        pendingCount > 0) ...[
+                      const SizedBox(width: 6),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        onPressed: widget.onOpenBulkPending,
+                        icon: const Icon(Icons.campaign_rounded, size: 16),
+                        label: Text(
+                          '${s.t("bulk_remind_due")} ($pendingCount)',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 6),
                     IconButton.outlined(
                       tooltip: s.t('bin_title'),
@@ -502,6 +763,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _paymentFilterChip('', s.t('all_payments'), primary),
+                      const SizedBox(width: 6),
+                      for (final ps in OrderModel.paymentStatuses)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _paymentFilterChip(
+                              ps, 'Pay: $ps', _paymentStatusColor(ps)),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -543,17 +820,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     itemCount: filteredOrders.length,
                     itemBuilder: (ctx, i) {
                       final order = filteredOrders[i];
-                      Color statusColor = Colors.orange;
-                      if (order.status == 'Paid') statusColor = Colors.blue;
-                      if (order.status == 'Delivered') {
-                        statusColor = Colors.green;
-                      }
-                      if (order.status == 'Dispatched') {
-                        statusColor = Colors.purple;
-                      }
-                      if (order.status == 'Review Sent') {
-                        statusColor = Colors.teal;
-                      }
+                      final statusColor = _orderStatusColor(order.status);
+                      final payColor =
+                          _paymentStatusColor(order.paymentStatus);
+                      final canDispatch = order.status != 'Dispatched' &&
+                          order.status != 'Delivered' &&
+                          order.status != 'Review Sent';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -564,7 +836,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         ),
                         child: ExpansionTile(
                           tilePadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 2),
+                              horizontal: 12, vertical: 4),
                           childrenPadding:
                               const EdgeInsets.fromLTRB(12, 0, 12, 12),
                           leading: CircleAvatar(
@@ -582,25 +854,45 @@ class _OrdersScreenState extends State<OrdersScreen> {
                             style: const TextStyle(
                                 fontWeight: FontWeight.w700, fontSize: 13.5),
                           ),
-                          subtitle: Text(
-                            '${order.phone} • ₹${order.totalAmount.toStringAsFixed(0)}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade700),
-                          ),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              order.status.toUpperCase(),
-                              style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800),
-                            ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${order.phone} · ${TemplateEngine.formatMoney(order.totalAmount)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text.rich(
+                                TextSpan(
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700),
+                                  children: [
+                                    TextSpan(
+                                      text: 'Order: ${order.status}',
+                                      style: TextStyle(color: statusColor),
+                                    ),
+                                    TextSpan(
+                                      text: '  ·  ',
+                                      style: TextStyle(
+                                          color: Colors.grey.shade500),
+                                    ),
+                                    TextSpan(
+                                      text: order.isPartialPaid
+                                          ? 'Pay: Partial (${TemplateEngine.formatMoney(order.effectivePaidAmount)}/${TemplateEngine.formatMoney(order.totalAmount)})'
+                                          : 'Pay: ${order.paymentStatus}',
+                                      style: TextStyle(color: payColor),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                           children: [
                             const Divider(),
@@ -687,6 +979,34 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 ],
                               ),
                             ),
+                            if (order.isPaymentPending)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(s.t('balance_due'),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.red.shade700)),
+                                    Text(
+                                      TemplateEngine.formatMoney(
+                                          order.balanceDue),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.red.shade700,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures()
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             if (order.address.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Container(
@@ -714,9 +1034,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               ),
                             ],
                             const SizedBox(height: 10),
-                            if (order.status == 'New Inquiry' ||
-                                order.status == 'Address Received' ||
-                                order.status == 'Payment Pending') ...[
+                            if (order.isPaymentPending) ...[
                               Row(
                                 children: [
                                   Expanded(
@@ -757,7 +1075,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                 ],
                               ),
                               const SizedBox(height: 6),
-                            ] else if (order.status == 'Paid') ...[
+                            ],
+                            if (canDispatch) ...[
                               SizedBox(
                                 width: double.infinity,
                                 child: FilledButton.icon(
@@ -802,14 +1121,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     style: OutlinedButton.styleFrom(
                                       visualDensity: VisualDensity.compact,
                                     ),
-                                    onPressed: () => _openStatusDialog(order),
-                                    icon:
-                                        const Icon(Icons.swap_horiz, size: 14),
-                                    label: Text(s.t('update_status'),
+                                    onPressed: () => _openPaymentDialog(order),
+                                    icon: const Icon(Icons.payments_outlined,
+                                        size: 14),
+                                    label: Text(s.t('update_payment'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(fontSize: 11)),
                                   ),
                                 ),
                                 const SizedBox(width: 6),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () => _openStatusDialog(order),
+                                    icon:
+                                        const Icon(Icons.swap_horiz, size: 14),
+                                    label: Text(s.t('update_status'),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 11)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
                                 Expanded(
                                   child: FilledButton.icon(
                                     style: FilledButton.styleFrom(
@@ -818,19 +1158,37 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                       visualDensity: VisualDensity.compact,
                                     ),
                                     onPressed: () => _openStageWhatsApp(
-                                        order,
-                                        order.status == 'Paid'
-                                            ? 'paid'
-                                            : order.status == 'Dispatched'
-                                                ? 'dispatched'
-                                                : order.status == 'Review Sent'
-                                                    ? 'review'
-                                                    : 'payment'),
+                                      order,
+                                      order.isPaymentPending
+                                          ? 'payment'
+                                          : (order.status == 'Dispatched'
+                                              ? 'dispatched'
+                                              : order.status == 'Review Sent'
+                                                  ? 'review'
+                                                  : 'paid'),
+                                    ),
                                     icon: const Icon(Icons.send_rounded,
                                         size: 14),
                                     label: Text(s.t('send_whatsapp'),
                                         style: const TextStyle(fontSize: 11)),
                                   ),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: s.t('view_msg_logs'),
+                                  onPressed: () =>
+                                      showOrderMessageHistorySheet(
+                                    context: context,
+                                    service: widget.service,
+                                    s: s,
+                                    primaryColor: primary,
+                                    orderId: order.id,
+                                    customerName: order.customerName,
+                                    phone: order.phone,
+                                  ),
+                                  icon: const Icon(Icons.history_rounded,
+                                      size: 18),
                                 ),
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
@@ -895,6 +1253,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
       backgroundColor: Colors.grey.shade200,
       onSelected: (bool val) {
         setState(() => _filterStatus = val ? status : '');
+      },
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _paymentFilterChip(String payStatus, String label, Color color) {
+    final selected = _filterPayment == payStatus;
+    return ChoiceChip(
+      label: Text(label,
+          style: TextStyle(
+              fontSize: 11, color: selected ? Colors.white : Colors.black87)),
+      selected: selected,
+      selectedColor: color,
+      backgroundColor: Colors.grey.shade100,
+      onSelected: (bool val) {
+        setState(() => _filterPayment = val ? payStatus : '');
       },
       visualDensity: VisualDensity.compact,
     );

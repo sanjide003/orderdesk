@@ -53,6 +53,9 @@ class OrderModel {
   final double deliveryCharge;
   final double totalAmount;
   final String status;
+  final String paymentStatus;
+  final double paidAmount;
+  final DateTime? paidAt;
   final String trackingId;
   final String notes;
   final bool reviewSent;
@@ -64,11 +67,16 @@ class OrderModel {
   static const List<String> statuses = [
     'New Inquiry',
     'Address Received',
-    'Payment Pending',
-    'Paid',
+    'Confirmed',
     'Dispatched',
     'Delivered',
     'Review Sent',
+  ];
+
+  static const List<String> paymentStatuses = [
+    'Pending',
+    'Paid',
+    'Partial',
   ];
 
   const OrderModel({
@@ -83,6 +91,9 @@ class OrderModel {
     required this.deliveryCharge,
     required this.totalAmount,
     this.status = 'New Inquiry',
+    this.paymentStatus = 'Pending',
+    this.paidAmount = 0,
+    this.paidAt,
     this.trackingId = '',
     this.notes = '',
     this.reviewSent = false,
@@ -97,11 +108,23 @@ class OrderModel {
     return DateTime.now().difference(dispatchedAt!).inDays >= 4;
   }
 
-  bool get isPaidOrBeyond =>
-      status == 'Paid' ||
-      status == 'Dispatched' ||
-      status == 'Delivered' ||
-      status == 'Review Sent';
+  bool get isPaid => paymentStatus == 'Paid';
+  bool get isPartialPaid => paymentStatus == 'Partial';
+  bool get isPaymentPending => paymentStatus != 'Paid';
+  bool get isPaidOrBeyond => paymentStatus == 'Paid';
+
+  double get effectivePaidAmount {
+    if (paymentStatus == 'Paid') {
+      return paidAmount > 0 ? paidAmount : totalAmount;
+    }
+    if (paymentStatus == 'Partial') {
+      return paidAmount.clamp(0.0, totalAmount);
+    }
+    return 0.0;
+  }
+
+  double get balanceDue =>
+      (totalAmount - effectivePaidAmount).clamp(0.0, totalAmount);
 
   String get itemsSummary =>
       items.map((e) => '${e.productName} (${e.packLabel}) x${e.quantity}').join(', ');
@@ -118,6 +141,9 @@ class OrderModel {
     double? deliveryCharge,
     double? totalAmount,
     String? status,
+    String? paymentStatus,
+    double? paidAmount,
+    DateTime? paidAt,
     String? trackingId,
     String? notes,
     bool? reviewSent,
@@ -138,6 +164,9 @@ class OrderModel {
       deliveryCharge: deliveryCharge ?? this.deliveryCharge,
       totalAmount: totalAmount ?? this.totalAmount,
       status: status ?? this.status,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paidAmount: paidAmount ?? this.paidAmount,
+      paidAt: paidAt ?? this.paidAt,
       trackingId: trackingId ?? this.trackingId,
       notes: notes ?? this.notes,
       reviewSent: reviewSent ?? this.reviewSent,
@@ -148,6 +177,64 @@ class OrderModel {
     );
   }
 
+  static (String status, String paymentStatus, double paidAmount)
+      resolveLegacyStatuses({
+    required String rawStatus,
+    String? rawPaymentStatus,
+    double? rawPaidAmount,
+    required double totalAmount,
+  }) {
+    String resolvedStatus;
+    String resolvedPayment;
+    double resolvedPaidAmt;
+
+    if (rawPaymentStatus == null || rawPaymentStatus.trim().isEmpty) {
+      if (rawStatus == 'Paid') {
+        resolvedStatus = 'Confirmed';
+        resolvedPayment = 'Paid';
+        resolvedPaidAmt = rawPaidAmount ?? totalAmount;
+      } else if (rawStatus == 'Payment Pending') {
+        resolvedStatus = 'Address Received';
+        resolvedPayment = 'Pending';
+        resolvedPaidAmt = 0;
+      } else if (rawStatus == 'Dispatched' ||
+          rawStatus == 'Delivered' ||
+          rawStatus == 'Review Sent') {
+        resolvedStatus = rawStatus;
+        resolvedPayment = 'Paid';
+        resolvedPaidAmt = rawPaidAmount ?? totalAmount;
+      } else {
+        resolvedStatus =
+            statuses.contains(rawStatus) ? rawStatus : 'New Inquiry';
+        resolvedPayment = 'Pending';
+        resolvedPaidAmt = 0;
+      }
+    } else {
+      resolvedPayment = paymentStatuses.contains(rawPaymentStatus)
+          ? rawPaymentStatus
+          : 'Pending';
+      if (rawStatus == 'Paid') {
+        resolvedStatus = 'Confirmed';
+      } else if (rawStatus == 'Payment Pending') {
+        resolvedStatus = 'Address Received';
+      } else {
+        resolvedStatus =
+            statuses.contains(rawStatus) ? rawStatus : 'New Inquiry';
+      }
+      if (resolvedPayment == 'Paid') {
+        resolvedPaidAmt = (rawPaidAmount != null && rawPaidAmount > 0)
+            ? rawPaidAmount
+            : totalAmount;
+      } else if (resolvedPayment == 'Partial') {
+        resolvedPaidAmt = (rawPaidAmount ?? 0).clamp(0.0, totalAmount);
+      } else {
+        resolvedPaidAmt = 0;
+      }
+    }
+
+    return (resolvedStatus, resolvedPayment, resolvedPaidAmt);
+  }
+
   factory OrderModel.fromMap(String id, Map<String, dynamic> map) {
     final rawItems = (map['items'] as List<dynamic>? ?? []);
     DateTime parseDate(dynamic v) {
@@ -155,6 +242,21 @@ class OrderModel {
       if (v is String) return DateTime.tryParse(v) ?? DateTime.now();
       return DateTime.now();
     }
+
+    final total = ((map['totalAmount'] ?? 0) as num).toDouble();
+    final rawStatus = (map['status'] ?? 'New Inquiry') as String;
+    final rawPaymentStatus = map['paymentStatus'] as String?;
+    final rawPaidAmt = map['paidAmount'] != null
+        ? (map['paidAmount'] as num).toDouble()
+        : null;
+
+    final (resolvedStatus, resolvedPayment, resolvedPaidAmt) =
+        resolveLegacyStatuses(
+      rawStatus: rawStatus,
+      rawPaymentStatus: rawPaymentStatus,
+      rawPaidAmount: rawPaidAmt,
+      totalAmount: total,
+    );
 
     return OrderModel(
       id: id,
@@ -168,8 +270,11 @@ class OrderModel {
       discountPercent: ((map['discountPercent'] ?? 0) as num).toDouble(),
       discountAmount: ((map['discountAmount'] ?? 0) as num).toDouble(),
       deliveryCharge: ((map['deliveryCharge'] ?? 0) as num).toDouble(),
-      totalAmount: ((map['totalAmount'] ?? 0) as num).toDouble(),
-      status: (map['status'] ?? 'New Inquiry') as String,
+      totalAmount: total,
+      status: resolvedStatus,
+      paymentStatus: resolvedPayment,
+      paidAmount: resolvedPaidAmt,
+      paidAt: map['paidAt'] != null ? parseDate(map['paidAt']) : null,
       trackingId: (map['trackingId'] ?? '') as String,
       notes: (map['notes'] ?? '') as String,
       reviewSent: (map['reviewSent'] ?? false) as bool,
@@ -193,6 +298,9 @@ class OrderModel {
         'deliveryCharge': deliveryCharge,
         'totalAmount': totalAmount,
         'status': status,
+        'paymentStatus': paymentStatus,
+        'paidAmount': paidAmount,
+        'paidAt': paidAt != null ? Timestamp.fromDate(paidAt!) : null,
         'trackingId': trackingId,
         'notes': notes,
         'reviewSent': reviewSent,

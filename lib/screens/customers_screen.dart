@@ -9,6 +9,7 @@ import '../services/firestore_service.dart';
 import '../services/lakfa_seed_data.dart';
 import '../services/ui_helpers.dart';
 import '../services/whatsapp_service.dart';
+import '../widgets/message_history_view.dart';
 
 class CustomersScreen extends StatefulWidget {
   final FirestoreService service;
@@ -590,6 +591,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
+              IconButton.outlined(
+                tooltip: s.t('view_msg_logs'),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => showCustomerMessageHistorySheet(
+                  context: context,
+                  service: widget.service,
+                  s: s,
+                  primaryColor: primary,
+                  customerName: c.name,
+                  phone: c.phone,
+                ),
+                icon: const Icon(Icons.history_rounded, size: 16),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -598,6 +613,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   onPressed: () => WhatsAppService.openDirectChat(
                     phone: c.phone,
                     message: '',
+                    logMeta: WhatsAppLogMeta(
+                      recipientName: c.name,
+                      customerId: c.id,
+                      mode: 'direct',
+                    ),
                   ),
                   icon: const Icon(Icons.chat_outlined, size: 14),
                   label: Text(s.t('send_whatsapp'),

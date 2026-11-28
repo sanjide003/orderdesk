@@ -43,8 +43,11 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   final _manualDeliveryCtrl = TextEditingController();
   final _discountPercentCtrl = TextEditingController();
   final _discountFlatCtrl = TextEditingController();
+  final _paidAmountCtrl = TextEditingController();
   final Map<String, int> _cartQty = {};
   String _payLang = 'ml';
+  String _paymentStatus = 'Pending';
+  String _orderStatus = 'New Inquiry';
 
   @override
   void initState() {
@@ -76,6 +79,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     _manualDeliveryCtrl.dispose();
     _discountPercentCtrl.dispose();
     _discountFlatCtrl.dispose();
+    _paidAmountCtrl.dispose();
     super.dispose();
   }
 
@@ -108,7 +112,10 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
       _manualDeliveryCtrl.clear();
       _discountPercentCtrl.clear();
       _discountFlatCtrl.clear();
+      _paidAmountCtrl.clear();
       _cartQty.clear();
+      _paymentStatus = 'Pending';
+      _orderStatus = 'New Inquiry';
     });
   }
 
@@ -199,6 +206,16 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           isError: true);
       return;
     }
+    final resolvedPaidAmt = _paymentStatus == 'Paid'
+        ? calc.total
+        : (_paymentStatus == 'Partial'
+            ? (double.tryParse(_paidAmountCtrl.text.trim()) ?? 0)
+                .clamp(0.0, calc.total)
+            : 0.0);
+    final resolvedOrderStatus = (_orderStatus == 'New Inquiry' && items.isNotEmpty)
+        ? 'Address Received'
+        : _orderStatus;
+    final now = DateTime.now();
     final order = OrderModel(
       id: '',
       customerName: _nameCtrl.text.trim().isEmpty
@@ -212,11 +229,14 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
       discountAmount: calc.discountAmount,
       deliveryCharge: calc.deliveryCharge,
       totalAmount: calc.total,
-      status: items.isNotEmpty ? 'Payment Pending' : 'New Inquiry',
-      createdAt: DateTime.now(),
+      status: resolvedOrderStatus,
+      paymentStatus: _paymentStatus,
+      paidAmount: resolvedPaidAmt,
+      paidAt: _paymentStatus == 'Pending' ? null : now,
+      createdAt: now,
     );
     try {
-      await widget.service.createOrder(order);
+      final orderId = await widget.service.createOrder(order);
       if (mounted) {
         UiHelpers.showFeedback(context, widget.s.t('order_saved'));
       }
@@ -235,10 +255,27 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           discountPercent: calc.discountPercent,
           deliveryCharge: calc.deliveryCharge,
           totalAmount: calc.total,
+          paidAmount: resolvedPaidAmt,
+          balanceDue: (calc.total - resolvedPaidAmt).clamp(0.0, calc.total),
+          customerName: order.customerName,
+          customerPhone: order.phone,
+          customerAddress: order.address,
           packSummary: order.itemsSummary,
           includeOrderBillHeader: true,
         );
-        await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
+        await WhatsAppService.openDirectChat(
+          phone: order.phone,
+          message: msg,
+          logMeta: WhatsAppLogMeta(
+            recipientName: order.customerName,
+            orderId: orderId,
+            templateId: payTpl.id,
+            templateTitle: payTpl.title,
+            stage: payTpl.stage,
+            lang: _payLang,
+            mode: 'order_stage',
+          ),
+        );
       }
     } catch (_) {
       if (mounted) {
@@ -583,6 +620,63 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _paymentStatus,
+                      isDense: true,
+                      decoration: InputDecoration(
+                        labelText: s.t('payment_status'),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      items: OrderModel.paymentStatuses
+                          .map(
+                              (st) => DropdownMenuItem(value: st, child: Text(st)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _paymentStatus = v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _orderStatus,
+                      isDense: true,
+                      decoration: InputDecoration(
+                        labelText: s.t('order_status_label'),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      items: OrderModel.statuses
+                          .map(
+                              (st) => DropdownMenuItem(value: st, child: Text(st)))
+                          .toList(),
+                      onChanged: (v) {
+                        if (v != null) setState(() => _orderStatus = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              if (_paymentStatus == 'Partial') ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _paidAmountCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: s.t('paid_amount'),
+                    prefixText: '₹',
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,

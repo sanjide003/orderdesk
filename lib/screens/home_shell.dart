@@ -14,8 +14,10 @@ import '../services/lakfa_seed_data.dart';
 import '../services/ui_helpers.dart';
 import '../widgets/update_dialog.dart';
 import 'bin_screen.dart';
+import 'bulk_whatsapp_screen.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
+import 'message_history_screen.dart';
 import 'new_order_screen.dart';
 import 'orders_screen.dart';
 import 'products_screen.dart';
@@ -266,6 +268,43 @@ class _HomeShellState extends State<HomeShell> {
                                     );
                                   }
 
+                                  void openBulkWhatsApp() {
+                                    if (isDesktop) {
+                                      selectTab(8);
+                                      return;
+                                    }
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => BulkWhatsAppScreen(
+                                          service: _service,
+                                          profile: profile,
+                                          products: products,
+                                          templates: templates,
+                                          orders: orders,
+                                          s: s,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  void openMessageHistory() {
+                                    if (isDesktop) {
+                                      selectTab(9);
+                                      return;
+                                    }
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MessageHistoryScreen(
+                                          service: _service,
+                                          profile: profile,
+                                          s: s,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
                                   void openBin() {
                                     if (isDesktop) {
                                       selectTab(6);
@@ -306,6 +345,8 @@ class _HomeShellState extends State<HomeShell> {
                                       onNavigateTab: selectTab,
                                       onOpenProducts: openProducts,
                                       onOpenCustomers: openCustomers,
+                                      onOpenBulkWhatsApp: openBulkWhatsApp,
+                                      onOpenMessageHistory: openMessageHistory,
                                       onOpenBin: openBin,
                                       onOpenSettings: openSettings,
                                     ),
@@ -333,6 +374,29 @@ class _HomeShellState extends State<HomeShell> {
                                       orders: orders,
                                       s: s,
                                       onOpenBin: isDesktop ? openBin : null,
+                                      onOpenBulkPending: () {
+                                        if (isDesktop) {
+                                          selectTab(8);
+                                        } else {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  BulkWhatsAppScreen(
+                                                service: _service,
+                                                profile: profile,
+                                                products: products,
+                                                templates: templates,
+                                                orders: orders,
+                                                s: s,
+                                                initialAudience:
+                                                    BulkAudienceFilter
+                                                        .pendingPaymentOrders,
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
                                     ),
                                     ProductsScreen(
                                       service: _service,
@@ -367,6 +431,21 @@ class _HomeShellState extends State<HomeShell> {
                                       service: _service,
                                       profile: profile,
                                       rules: rules,
+                                      s: s,
+                                      embedded: true,
+                                    ),
+                                    BulkWhatsAppScreen(
+                                      service: _service,
+                                      profile: profile,
+                                      products: products,
+                                      templates: templates,
+                                      orders: orders,
+                                      s: s,
+                                      embedded: true,
+                                    ),
+                                    MessageHistoryScreen(
+                                      service: _service,
+                                      profile: profile,
                                       s: s,
                                       embedded: true,
                                     ),
@@ -413,6 +492,18 @@ class _HomeShellState extends State<HomeShell> {
                                       label: s.t('tile_customers'),
                                     ),
                                     _SidebarItem(
+                                      index: 8,
+                                      icon: Icons.campaign_outlined,
+                                      selectedIcon: Icons.campaign_rounded,
+                                      label: s.t('tile_bulk_whatsapp'),
+                                    ),
+                                    _SidebarItem(
+                                      index: 9,
+                                      icon: Icons.history_outlined,
+                                      selectedIcon: Icons.history_rounded,
+                                      label: s.t('tile_message_logs'),
+                                    ),
+                                    _SidebarItem(
                                       index: 6,
                                       icon: Icons.delete_outline_rounded,
                                       selectedIcon: Icons.delete_sweep_rounded,
@@ -422,13 +513,16 @@ class _HomeShellState extends State<HomeShell> {
                                       index: 7,
                                       icon: Icons.settings_outlined,
                                       selectedIcon: Icons.settings_rounded,
-                                      label: s.t('tile_settings'),
+                                      label: s.t('tile_business_app'),
                                     ),
                                   ];
 
                                   if (isDesktop) {
-                                    final currentTitle =
-                                        navItems[_tabIndex].label;
+                                    final currentItem = navItems.firstWhere(
+                                      (item) => item.index == _tabIndex,
+                                      orElse: () => navItems.first,
+                                    );
+                                    final currentTitle = currentItem.label;
                                     return PopScope(
                                       canPop: canExitNow,
                                       onPopInvokedWithResult: (didPop, _) =>
@@ -907,7 +1001,7 @@ class _HomeShellState extends State<HomeShell> {
                                               context, activeLang, s),
                                         ),
                                         IconButton(
-                                          tooltip: s.t('tile_settings'),
+                                          tooltip: s.t('tile_business_app'),
                                           icon: const Icon(
                                               Icons.settings_outlined,
                                               size: 20),
