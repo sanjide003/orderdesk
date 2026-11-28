@@ -29,8 +29,10 @@ file:///app/applet/lib/services/lakfa_seed_data.dart
 file:///app/applet/lib/services/template_engine.dart
 file:///app/applet/lib/services/ui_helpers.dart
 file:///app/applet/lib/services/web_pwa_bridge_web.dart
+file:///app/applet/lib/services/whatsapp_formatter.dart
 file:///app/applet/lib/services/whatsapp_service.dart
 file:///app/applet/lib/widgets/update_dialog.dart
+file:///app/applet/lib/widgets/whatsapp_rich_text.dart
 file:///opt/flutter/bin/cache/flutter_web_sdk/kernel/dart2js_platform.dill
 file:///opt/flutter/packages/flutter/lib/animation.dart
 file:///opt/flutter/packages/flutter/lib/cupertino.dart

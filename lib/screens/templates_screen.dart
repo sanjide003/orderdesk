@@ -7,7 +7,9 @@ import '../services/app_strings.dart';
 import '../services/firestore_service.dart';
 import '../services/template_engine.dart';
 import '../services/ui_helpers.dart';
+import '../services/whatsapp_formatter.dart';
 import '../services/whatsapp_service.dart';
+import '../widgets/whatsapp_rich_text.dart';
 
 class TemplatesScreen extends StatefulWidget {
   final FirestoreService service;
@@ -52,6 +54,14 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         : '';
     int activeLangTab = 0; // 0=ML, 1=EN, 2=Manglish
 
+    final bodyFocus = FocusNode();
+    final Map<int, String> prevBodies = {
+      0: mlCtrl.text,
+      1: enCtrl.text,
+      2: manglishCtrl.text,
+    };
+    bool showPreview = false;
+
     final vars = TemplateEngine.allAvailableVariables(widget.profile);
 
     await showModalBottomSheet(
@@ -66,6 +76,34 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
             return mlCtrl;
           }
 
+          void applyInlineFormat(WhatsAppInlineFormat fmt) {
+            final c = currentBodyCtrl();
+            WhatsAppFormatter.toggleInline(c, fmt);
+            prevBodies[activeLangTab] = c.text;
+            bodyFocus.requestFocus();
+            if (showPreview) setModalState(() {});
+          }
+
+          void applyLineFormat(WhatsAppLineFormat fmt) {
+            final c = currentBodyCtrl();
+            WhatsAppFormatter.toggleLinePrefix(c, fmt);
+            prevBodies[activeLangTab] = c.text;
+            bodyFocus.requestFocus();
+            if (showPreview) setModalState(() {});
+          }
+
+          final targetProd = targetProductId.isEmpty
+              ? null
+              : widget.products.cast<ProductModel?>().firstWhere(
+                    (p) => p?.id == targetProductId,
+                    orElse: () => null,
+                  );
+
+          final previewRaw = _renderWithSample(
+            body: currentBodyCtrl().text,
+            selectedProduct: targetProd,
+          );
+
           return Padding(
             padding: EdgeInsets.only(
               left: 14,
@@ -78,14 +116,41 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    existing == null
-                        ? s.t('add_template')
-                        : s.t('edit_template'),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w800),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          existing == null
+                              ? s.t('add_template')
+                              : s.t('edit_template'),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor: showPreview
+                              ? const Color(0xFF0F766E)
+                              : Colors.grey.shade700,
+                        ),
+                        onPressed: () =>
+                            setModalState(() => showPreview = !showPreview),
+                        icon: Icon(
+                          showPreview
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 17,
+                        ),
+                        label: Text(
+                          s.t('preview_live'),
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: titleCtrl,
                     decoration: InputDecoration(
@@ -128,15 +193,136 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                         setModalState(() => activeLangTab = set.first),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: currentBodyCtrl(),
-                    maxLines: 7,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                  // 8-Format WhatsApp Rich Text Toolbar (>= 44x44 touch targets)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(10),
+                      ),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_bold'),
+                            icon: Icons.format_bold_rounded,
+                            onPressed: () =>
+                                applyInlineFormat(WhatsAppInlineFormat.bold),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_italic'),
+                            icon: Icons.format_italic_rounded,
+                            onPressed: () =>
+                                applyInlineFormat(WhatsAppInlineFormat.italic),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_strike'),
+                            icon: Icons.format_strikethrough_rounded,
+                            onPressed: () => applyInlineFormat(
+                                WhatsAppInlineFormat.strikethrough),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_mono'),
+                            icon: Icons.data_object_rounded,
+                            onPressed: () => applyInlineFormat(
+                                WhatsAppInlineFormat.monospace),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_code'),
+                            icon: Icons.code_rounded,
+                            onPressed: () => applyInlineFormat(
+                                WhatsAppInlineFormat.inlineCode),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 22,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            color: Colors.grey.shade300,
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_bullet'),
+                            icon: Icons.format_list_bulleted_rounded,
+                            onPressed: () => applyLineFormat(
+                                WhatsAppLineFormat.bulletedList),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_number'),
+                            icon: Icons.format_list_numbered_rounded,
+                            onPressed: () => applyLineFormat(
+                                WhatsAppLineFormat.numberedList),
+                          ),
+                          _FormatToolButton(
+                            tooltip: s.t('fmt_quote'),
+                            icon: Icons.format_quote_rounded,
+                            onPressed: () =>
+                                applyLineFormat(WhatsAppLineFormat.blockQuote),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  TextField(
+                    key: ValueKey('tpl_body_$activeLangTab'),
+                    focusNode: bodyFocus,
+                    controller: currentBodyCtrl(),
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    minLines: 6,
+                    maxLines: 10,
+                    style: const TextStyle(fontSize: 13, height: 1.4),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.all(12),
+                      border: OutlineInputBorder(
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(10),
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(10),
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                    ),
+                    onChanged: (_) {
+                      final c = currentBodyCtrl();
+                      final prev = prevBodies[activeLangTab] ?? '';
+                      final nextText =
+                          WhatsAppFormatter.handleEnterAutoContinue(c, prev);
+                      prevBodies[activeLangTab] = nextText;
+                      if (showPreview) {
+                        setModalState(() {});
+                      }
+                    },
+                  ),
+                  if (showPreview) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE7FFDB),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: previewRaw.trim().isEmpty
+                          ? Text(
+                              s.t('preview_empty'),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            )
+                          : WhatsAppRichText(text: previewRaw),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(s.t('insert_variable'),
                       style:
@@ -152,10 +338,10 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                               visualDensity: VisualDensity.compact,
                               onPressed: () {
                                 final c = currentBodyCtrl();
-                                final txt = c.text;
-                                c.text = '$txt$v';
-                                c.selection = TextSelection.collapsed(
-                                    offset: c.text.length);
+                                WhatsAppFormatter.insertAtCursor(c, v);
+                                prevBodies[activeLangTab] = c.text;
+                                bodyFocus.requestFocus();
+                                if (showPreview) setModalState(() {});
                               },
                             ))
                         .toList(),
@@ -242,6 +428,42 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           );
         },
       ),
+    );
+    bodyFocus.dispose();
+  }
+
+  String _renderWithSample({
+    required String body,
+    ProductModel? selectedProduct,
+  }) {
+    final sampleProduct = selectedProduct ??
+        (widget.products.isNotEmpty ? widget.products.first : null);
+    final samplePack = sampleProduct != null && sampleProduct.packs.isNotEmpty
+        ? sampleProduct.packs.first
+        : null;
+    final sampleItems = sampleProduct != null && samplePack != null
+        ? [
+            OrderItem(
+              productId: sampleProduct.id,
+              productName: sampleProduct.name,
+              packLabel: samplePack.label,
+              unitPrice: samplePack.price,
+              packDeliveryCharge: samplePack.deliveryCharge,
+              quantity: 1,
+            )
+          ]
+        : const <OrderItem>[];
+    final sampleSub = samplePack?.price ?? 0;
+    final sampleDel = samplePack?.deliveryCharge ?? 0;
+    return TemplateEngine.render(
+      templateBody: body,
+      profile: widget.profile,
+      products: widget.products,
+      selectedProduct: selectedProduct,
+      orderItems: sampleItems,
+      subtotal: sampleSub,
+      deliveryCharge: sampleDel,
+      totalAmount: sampleSub + sampleDel,
     );
   }
 
@@ -338,37 +560,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 final idxLabel = (i + 1).toString().padLeft(2, '0');
                 final lang = _cardLang[tpl.id] ??
                     (widget.profile.appLanguage == 'en' ? 'en' : 'ml');
-                final sampleProduct = selectedProduct ??
-                    (widget.products.isNotEmpty
-                        ? widget.products.first
-                        : null);
-                final samplePack =
-                    sampleProduct != null && sampleProduct.packs.isNotEmpty
-                        ? sampleProduct.packs.first
-                        : null;
-                final sampleItems = sampleProduct != null && samplePack != null
-                    ? [
-                        OrderItem(
-                          productId: sampleProduct.id,
-                          productName: sampleProduct.name,
-                          packLabel: samplePack.label,
-                          unitPrice: samplePack.price,
-                          packDeliveryCharge: samplePack.deliveryCharge,
-                          quantity: 1,
-                        )
-                      ]
-                    : const <OrderItem>[];
-                final sampleSub = samplePack?.price ?? 0;
-                final sampleDel = samplePack?.deliveryCharge ?? 0;
-                final rendered = TemplateEngine.render(
-                  templateBody: tpl.bodyForLang(lang),
-                  profile: widget.profile,
-                  products: widget.products,
+                final rendered = _renderWithSample(
+                  body: tpl.bodyForLang(lang),
                   selectedProduct: selectedProduct,
-                  orderItems: sampleItems,
-                  subtotal: sampleSub,
-                  deliveryCharge: sampleDel,
-                  totalAmount: sampleSub + sampleDel,
                 );
 
                 return Container(
@@ -449,9 +643,13 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                             color: const Color(0xFFE7FFDB),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: SelectableText(
-                            rendered,
-                            style: const TextStyle(fontSize: 12.5, height: 1.4),
+                          child: WhatsAppRichText(
+                            text: rendered,
+                            baseStyle: const TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              color: Color(0xFF111B21),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -522,6 +720,38 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
         onPressed: () => _openEditor(),
         tooltip: s.t('add_template'),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+class _FormatToolButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _FormatToolButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        canRequestFocus: false,
+        borderRadius: BorderRadius.circular(8),
+        onTap: onPressed,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+          child: Icon(
+            icon,
+            size: 19,
+            color: const Color(0xFF1E293B),
+          ),
+        ),
       ),
     );
   }
