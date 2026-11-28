@@ -267,7 +267,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFFF4F7F6),
       body: Column(
         children: [
           LayoutBuilder(

@@ -267,7 +267,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             final primary = Color(_colorHex);
 
             return Scaffold(
-              backgroundColor: Colors.transparent,
+              backgroundColor: widget.embedded
+                  ? Colors.transparent
+                  : const Color(0xFFF4F7F6),
               appBar: widget.embedded
                   ? null
                   : AppBar(
@@ -531,12 +533,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           const SizedBox(width: 8),
                           TextButton.icon(
-                            onPressed: () {
+                            onPressed: () async {
+                              final ok = await UiHelpers.confirmDialog(
+                                context,
+                                title: s.t('confirm_sign_out'),
+                                message: s.t('sign_out_q'),
+                                confirmLabel: s.t('sign_out'),
+                                cancelLabel: s.t('cancel'),
+                                isDestructive: true,
+                              );
+                              if (!ok) return;
                               if (!widget.embedded &&
+                                  context.mounted &&
                                   Navigator.canPop(context)) {
                                 Navigator.pop(context);
                               }
-                              FirebaseAuth.instance.signOut();
+                              await FirebaseAuth.instance.signOut();
                             },
                             icon: const Icon(Icons.logout,
                                 size: 16, color: Colors.red),

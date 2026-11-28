@@ -816,7 +816,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 );
 
                 return Scaffold(
-                  backgroundColor: Colors.transparent,
+                  backgroundColor: widget.embedded
+                      ? Colors.transparent
+                      : const Color(0xFFF4F7F6),
                   appBar: widget.embedded
                       ? null
                       : AppBar(

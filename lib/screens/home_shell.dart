@@ -38,7 +38,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    _checkStartupUpdate();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkStartupUpdate());
   }
 
   Future<void> _checkStartupUpdate() async {
@@ -109,8 +109,18 @@ class _HomeShellState extends State<HomeShell> {
                 return Theme(
                   data: ThemeData(
                     useMaterial3: true,
-                    colorSchemeSeed: primary,
+                    brightness: Brightness.light,
+                    colorScheme: ColorScheme.fromSeed(
+                      seedColor: primary,
+                      brightness: Brightness.light,
+                    ),
                     scaffoldBackgroundColor: const Color(0xFFF4F7F6),
+                    canvasColor: const Color(0xFFF4F7F6),
+                    cardColor: Colors.white,
+                    dialogTheme:
+                        const DialogThemeData(backgroundColor: Colors.white),
+                    bottomSheetTheme: const BottomSheetThemeData(
+                        backgroundColor: Colors.white),
                   ),
                   child: StreamBuilder<DeliveryRules>(
                     stream: _service.watchDeliveryRules(),
@@ -591,10 +601,27 @@ class _HomeShellState extends State<HomeShell> {
                                                         ),
                                                       ),
                                                       InkWell(
-                                                        onTap: () =>
-                                                            FirebaseAuth
+                                                        onTap: () async {
+                                                          final ok =
+                                                              await UiHelpers
+                                                                  .confirmDialog(
+                                                            context,
+                                                            title: s.t(
+                                                                'confirm_sign_out'),
+                                                            message: s.t(
+                                                                'sign_out_q'),
+                                                            confirmLabel:
+                                                                s.t('sign_out'),
+                                                            cancelLabel:
+                                                                s.t('cancel'),
+                                                            isDestructive: true,
+                                                          );
+                                                          if (ok) {
+                                                            await FirebaseAuth
                                                                 .instance
-                                                                .signOut(),
+                                                                .signOut();
+                                                          }
+                                                        },
                                                         borderRadius:
                                                             BorderRadius
                                                                 .circular(10),
@@ -725,7 +752,15 @@ class _HomeShellState extends State<HomeShell> {
                                   // Mobile & Narrow Viewport Layout
                                   final mobileTab =
                                       _tabIndex > 3 ? 0 : _tabIndex;
-                                  return Scaffold(
+                                  return PopScope(
+                                    canPop: mobileTab == 0,
+                                    onPopInvokedWithResult: (didPop, _) {
+                                      if (!didPop && mobileTab != 0) {
+                                        selectTab(0);
+                                      }
+                                    },
+                                    child: Scaffold(
+                                      backgroundColor: const Color(0xFFF4F7F6),
                                     appBar: AppBar(
                                       title: Row(
                                         children: [
@@ -839,6 +874,7 @@ class _HomeShellState extends State<HomeShell> {
                                         ),
                                       ],
                                     ),
+                                  ),
                                   );
                                 },
                               );

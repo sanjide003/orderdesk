@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +48,10 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
   } catch (e) {
     initError = e.toString();
   }
@@ -78,6 +83,10 @@ class _OrderDeskAppState extends State<OrderDeskApp> {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
       if (mounted) {
         setState(() {
           _initError = null;
@@ -102,11 +111,21 @@ class _OrderDeskAppState extends State<OrderDeskApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF0F766E),
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0F766E),
+          brightness: Brightness.light,
+        ),
         scaffoldBackgroundColor: const Color(0xFFF4F7F6),
+        canvasColor: const Color(0xFFF4F7F6),
+        cardColor: Colors.white,
+        dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
+        bottomSheetTheme:
+            const BottomSheetThemeData(backgroundColor: Colors.white),
       ),
       home: _initError != null
           ? Scaffold(
+              backgroundColor: const Color(0xFFF4F7F6),
               body: Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
@@ -166,14 +185,16 @@ class _OrderDeskAppState extends State<OrderDeskApp> {
               ),
             )
           : StreamBuilder<User?>(
+              initialData: FirebaseAuth.instance.currentUser,
               stream: FirebaseAuth.instance.authStateChanges(),
               builder: (context, snapshot) {
+                if (snapshot.hasData) return const HomeShell();
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Scaffold(
+                    backgroundColor: Color(0xFFF4F7F6),
                     body: Center(child: CircularProgressIndicator()),
                   );
                 }
-                if (snapshot.hasData) return const HomeShell();
                 return const LoginScreen();
               },
             ),

@@ -389,7 +389,9 @@ class ProductsScreen extends StatelessWidget {
                 }
 
                 return Scaffold(
-                  backgroundColor: Colors.transparent,
+                  backgroundColor: embedded
+                      ? Colors.transparent
+                      : const Color(0xFFF4F7F6),
                   appBar: embedded
                       ? null
                       : AppBar(

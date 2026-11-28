@@ -1,4 +1,4 @@
-name: Fast Build & Publish (Vercel Web + Direct APK Update)
+name: Build Android APK & Publish GitHub Release
 
 on:
   push:
@@ -11,9 +11,11 @@ concurrency:
 
 jobs:
   build_android:
-    name: Build Android APK (arm64)
+    name: Build Android APK (arm64) & Release
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -40,6 +42,9 @@ jobs:
             if ! grep -q "REQUEST_INSTALL_PACKAGES" "$MANIFEST"; then
               sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n    <application|' "$MANIFEST"
             fi
+            if ! grep -q "android:allowBackup" "$MANIFEST"; then
+              sed -i 's|<application|<application android:allowBackup="false"|' "$MANIFEST"
+            fi
           fi
           if [ -f "android/app/build.gradle.kts" ]; then
             printf '\nandroid { lint { checkReleaseBuilds = false; abortOnError = false } }\n' >> android/app/build.gradle.kts
@@ -50,105 +55,37 @@ jobs:
       - name: Generate Custom Android App Icons
         run: dart run flutter_launcher_icons
       - name: Build arm64 Android APK
-        run: flutter build apk --release --target-platform android-arm64
-      - uses: actions/upload-artifact@v4
-        with:
-          name: orderdesk-android-arm64-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-  build_and_publish_web:
-    name: Build Web & Bundle Direct APK to Vercel
-    needs: [ build_android ]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 12
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-      - name: Ensure Web Platform Config Exists (Preserve Custom Assets)
+        run: flutter build apk --release --target-platform android-arm64 --dart-define=GITHUB_REPO=${{ github.repository }}
+      - name: Prepare Release Assets (APK + version.json)
         run: |
-          cp web/index.html /tmp/custom_index.html
-          cp web/manifest.json /tmp/custom_manifest.json
-          cp web/favicon.png /tmp/custom_favicon.png || true
-          cp web/version.json /tmp/custom_version.json || true
-          cp -r web/icons /tmp/custom_icons || true
-          flutter create --platforms=web --org com.wapp --project-name orderdesk .
-          cp /tmp/custom_index.html web/index.html
-          cp /tmp/custom_manifest.json web/manifest.json
-          cp /tmp/custom_favicon.png web/favicon.png || true
-          cp /tmp/custom_version.json web/version.json || true
-          rm -rf web/icons && cp -r /tmp/custom_icons web/icons || true
-      - run: flutter pub get
-      - name: Build Flutter Web (Self-Hosted Assets, No External CDN)
-        run: flutter build web --release --base-href=/ --no-web-resources-cdn
-      - name: Download Built APK into Web Downloads Folder
-        continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: orderdesk-android-arm64-apk
-          path: build/web/downloads
-      - name: Rename APK, Write version.json & vercel.json
-        run: |
-          mkdir -p build/web/downloads
-          if [ -f "build/web/downloads/app-release.apk" ]; then
-            mv build/web/downloads/app-release.apk build/web/downloads/orderdesk-latest.apk
-          fi
+          mkdir -p release-assets
+          cp build/app/outputs/flutter-apk/app-release.apk release-assets/orderdesk-latest.apk
           VER_LINE=$(grep '^version:' pubspec.yaml | awk '{print $2}')
           VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
           BUILD_NUM=$(echo "$VER_LINE" | cut -d'+' -f2)
           NOW_UTC=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          cat << VJSON > build/web/version.json
+          cat << VJSON > release-assets/version.json
           {
             "version": "$VER_NAME",
             "buildNumber": $BUILD_NUM,
-            "apkUrl": "https://orderdeskwapp.vercel.app/downloads/orderdesk-latest.apk",
+            "apkUrl": "https://github.com/${{ github.repository }}/releases/latest/download/orderdesk-latest.apk",
             "updatedAt": "$NOW_UTC"
           }
           VJSON
-          cat << VCJSON > build/web/vercel.json
-          {
-            "cleanUrls": false,
-            "trailingSlash": false,
-            "headers": [
-              {
-                "source": "/version.json",
-                "headers": [
-                  { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-                  { "key": "Access-Control-Allow-Origin", "value": "*" }
-                ]
-              },
-              {
-                "source": "/flutter_bootstrap.js",
-                "headers": [
-                  { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-                ]
-              },
-              {
-                "source": "/downloads/(.*)",
-                "headers": [
-                  { "key": "Content-Disposition", "value": "attachment; filename=orderdesk-latest.apk" },
-                  { "key": "Content-Type", "value": "application/vnd.android.package-archive" },
-                  { "key": "Access-Control-Allow-Origin", "value": "*" }
-                ]
-              }
-            ],
-            "rewrites": [
-              {
-                "source": "/((?!downloads/|version\\.json|assets/|canvaskit/|icons/|.*\\..*).*)",
-                "destination": "/index.html"
-              }
-            ]
-          }
-          VCJSON
-      - name: Publish Web + Direct APK to web-dist Branch
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: web-dist
-          publish_dir: ./build/web
-          force_orphan: true
+          name: orderdesk-android-arm64-apk
+          path: release-assets/orderdesk-latest.apk
+      - name: Publish to GitHub Release (latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER_LINE=$(grep '^version:' pubspec.yaml | awk '{print $2}')
+          VER_NAME=$(echo "$VER_LINE" | cut -d'+' -f1)
+          BUILD_NUM=$(echo "$VER_LINE" | cut -d'+' -f2)
+          if gh release view latest >/dev/null 2>&1; then
+            gh release edit latest --title "OrderDesk v${VER_NAME} (Build ${BUILD_NUM})" --notes "Direct Android arm64 APK release for OrderDesk."
+          else
+            gh release create latest --title "OrderDesk v${VER_NAME} (Build ${BUILD_NUM})" --notes "Direct Android arm64 APK release for OrderDesk."
+          fi
+          gh release upload latest release-assets/orderdesk-latest.apk release-assets/version.json --clobber

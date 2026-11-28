@@ -221,6 +221,10 @@ class AppStrings {
     'web_version_badge': 'Web App',
     'retry': 'Retry',
     'startup_error': 'Unable to connect. Please check your internet and retry.',
+    'confirm_sign_out': 'Sign Out?',
+    'sign_out_q': 'Are you sure you want to sign out? You stay logged in automatically unless you sign out or clear app data.',
+    'confirm_mark_paid_q': 'Mark this order as Paid?',
+    'confirm_send_review_q': 'Send WhatsApp review link and mark Review Sent?',
     'action_failed': 'Action failed. Please try again.',
   };
 
@@ -436,6 +440,10 @@ class AppStrings {
     'web_version_badge': 'വെബ് ആപ്പ്',
     'retry': 'വീണ്ടും ശ്രമിക്കുക',
     'startup_error': 'കണക്ട് ചെയ്യാൻ കഴിഞ്ഞില്ല. ഇന്റർനെറ്റ് പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കുക.',
+    'confirm_sign_out': 'ലോഗ് ഔട്ട് ചെയ്യണോ?',
+    'sign_out_q': 'ലോഗ് ഔട്ട് ചെയ്യുന്നത് ഉറപ്പാണോ? ലോഗ് ഔട്ട് ചെയ്യാത്തിടത്തോളം ആപ്പ് തുറക്കുമ്പോൾ വീണ്ടും ലോഗിൻ ആവശ്യപ്പെടില്ല.',
+    'confirm_mark_paid_q': 'ഈ ഓർഡർ Paid ആയി അപ്‌ഡേറ്റ് ചെയ്യണോ?',
+    'confirm_send_review_q': 'വാട്സാപ്പ് റിവ്യൂ ലിങ്ക് അയച്ച് Review Sent ആക്കണോ?',
     'action_failed': 'പ്രവർത്തനം പരാജയപ്പെട്ടു. വീണ്ടും ശ്രമിക്കുക.',
   };
 }

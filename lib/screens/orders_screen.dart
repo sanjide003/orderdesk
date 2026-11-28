@@ -253,6 +253,160 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
+  TemplateModel? _findTemplateForStage(String stage) {
+    for (final t in widget.templates) {
+      if (t.stage == stage && t.productId.isEmpty) return t;
+    }
+    for (final t in widget.templates) {
+      if (t.stage == stage) return t;
+    }
+    return widget.templates.isNotEmpty ? widget.templates.first : null;
+  }
+
+  Future<void> _openStageWhatsApp(
+    OrderModel order,
+    String stage, {
+    String? trackingIdOverride,
+  }) async {
+    final s = widget.s;
+    if (order.phone.trim().isEmpty) {
+      UiHelpers.showFeedback(context, s.t('enter_phone_first'), isError: true);
+      return;
+    }
+    final tpl = _findTemplateForStage(stage);
+    final lang = widget.profile.appLanguage;
+    final body = tpl != null ? tpl.bodyForLang(lang) : 'Order Update';
+    final msg = TemplateEngine.render(
+      templateBody: body,
+      profile: widget.profile,
+      products: widget.products,
+      subtotal: order.subtotal,
+      deliveryCharge: order.deliveryCharge,
+      totalAmount: order.totalAmount,
+      packSummary: order.itemsSummary,
+      trackingId: trackingIdOverride ?? order.trackingId,
+    );
+    await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
+  }
+
+  Future<void> _quickSendPayment(OrderModel order) async {
+    await _openStageWhatsApp(order, 'payment');
+  }
+
+  Future<void> _quickMarkPaid(OrderModel order) async {
+    final s = widget.s;
+    final ok = await UiHelpers.confirmDialog(
+      context,
+      title: s.t('mark_paid'),
+      message: s.t('confirm_mark_paid_q'),
+      confirmLabel: s.t('confirm'),
+      cancelLabel: s.t('cancel'),
+    );
+    if (!ok) return;
+    try {
+      await widget.service.updateOrderStatus(
+        orderId: order.id,
+        status: 'Paid',
+      );
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('status_updated'));
+      }
+      await _openStageWhatsApp(order, 'paid');
+    } catch (_) {
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+      }
+    }
+  }
+
+  Future<void> _quickDispatch(OrderModel order) async {
+    final s = widget.s;
+    final trackingCtrl = TextEditingController(text: order.trackingId);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          s.t('dispatch_order'),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: trackingCtrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: s.t('tracking_id'),
+                isDense: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(s.t('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(s.t('save_and_whatsapp')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final trackingId = trackingCtrl.text.trim();
+    try {
+      await widget.service.updateOrderStatus(
+        orderId: order.id,
+        status: 'Dispatched',
+        trackingId: trackingId,
+      );
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('status_updated'));
+      }
+      await _openStageWhatsApp(
+        order,
+        'dispatched',
+        trackingIdOverride: trackingId,
+      );
+    } catch (_) {
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+      }
+    }
+  }
+
+  Future<void> _quickSendReview(OrderModel order) async {
+    final s = widget.s;
+    final ok = await UiHelpers.confirmDialog(
+      context,
+      title: s.t('send_review'),
+      message: s.t('confirm_send_review_q'),
+      confirmLabel: s.t('confirm'),
+      cancelLabel: s.t('cancel'),
+    );
+    if (!ok) return;
+    try {
+      await widget.service.updateOrderStatus(
+        orderId: order.id,
+        status: 'Review Sent',
+        reviewSent: true,
+      );
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('status_updated'));
+      }
+      await _openStageWhatsApp(order, 'review');
+    } catch (_) {
+      if (mounted) {
+        UiHelpers.showFeedback(context, s.t('action_failed'), isError: true);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = widget.s;
@@ -274,7 +428,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFFF4F7F6),
       body: Column(
         children: [
           Container(
@@ -491,6 +645,87 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               ),
                             ],
                             const SizedBox(height: 10),
+                            if (order.status == 'New Inquiry' ||
+                                order.status == 'Address Received' ||
+                                order.status == 'Payment Pending') ...[
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xFF0F766E),
+                                        side: const BorderSide(
+                                            color: Color(0xFF0F766E)),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () =>
+                                          _quickSendPayment(order),
+                                      icon: const Icon(Icons.qr_code_2_rounded,
+                                          size: 14),
+                                      label: Text(s.t('send_payment'),
+                                          style:
+                                              const TextStyle(fontSize: 11)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: FilledButton.icon(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Colors.blue.shade700,
+                                        foregroundColor: Colors.white,
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () => _quickMarkPaid(order),
+                                      icon: const Icon(
+                                          Icons.check_circle_outline,
+                                          size: 14),
+                                      label: Text(s.t('mark_paid'),
+                                          style:
+                                              const TextStyle(fontSize: 11)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                            ] else if (order.status == 'Paid') ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.purple.shade700,
+                                    foregroundColor: Colors.white,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () => _quickDispatch(order),
+                                  icon: const Icon(
+                                      Icons.local_shipping_outlined,
+                                      size: 15),
+                                  label: Text(s.t('dispatch_order'),
+                                      style: const TextStyle(fontSize: 11.5)),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                            ] else if ((order.status == 'Dispatched' ||
+                                    order.status == 'Delivered') &&
+                                !order.reviewSent) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: Colors.teal.shade700,
+                                    foregroundColor: Colors.white,
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  onPressed: () => _quickSendReview(order),
+                                  icon: const Icon(Icons.star_outline_rounded,
+                                      size: 15),
+                                  label: Text(s.t('send_review'),
+                                      style: const TextStyle(fontSize: 11.5)),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                            ],
                             Row(
                               children: [
                                 Expanded(
@@ -513,26 +748,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                       foregroundColor: Colors.white,
                                       visualDensity: VisualDensity.compact,
                                     ),
-                                    onPressed: () {
-                                      final tpl = widget.templates.isNotEmpty
-                                          ? widget.templates.first
-                                          : null;
-                                      final body = tpl != null
-                                          ? tpl.bodyMl
-                                          : 'Order Update';
-                                      final msg = TemplateEngine.render(
-                                        templateBody: body,
-                                        profile: widget.profile,
-                                        products: widget.products,
-                                        subtotal: order.subtotal,
-                                        deliveryCharge: order.deliveryCharge,
-                                        totalAmount: order.totalAmount,
-                                        packSummary: order.itemsSummary,
-                                        trackingId: order.trackingId,
-                                      );
-                                      WhatsAppService.openDirectChat(
-                                          phone: order.phone, message: msg);
-                                    },
+                                    onPressed: () => _openStageWhatsApp(
+                                        order,
+                                        order.status == 'Paid'
+                                            ? 'paid'
+                                            : order.status == 'Dispatched'
+                                                ? 'dispatched'
+                                                : order.status == 'Review Sent'
+                                                    ? 'review'
+                                                    : 'payment'),
                                     icon: const Icon(Icons.send_rounded,
                                         size: 14),
                                     label: Text(s.t('send_whatsapp'),

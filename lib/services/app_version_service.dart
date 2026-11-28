@@ -34,10 +34,15 @@ class InstalledAppVersion {
 class AppVersionService {
   static const String fallbackVersion = '4.0.0';
   static const int fallbackBuildNumber = 4;
-  static const String versionJsonUrl =
+  static const String githubRepo = String.fromEnvironment('GITHUB_REPO');
+  static const String fallbackVersionJsonUrl =
       'https://orderdeskwapp.vercel.app/version.json';
-  static const String defaultApkUrl =
+  static const String fallbackApkUrl =
       'https://orderdeskwapp.vercel.app/downloads/orderdesk-latest.apk';
+
+  static String get defaultApkUrl => githubRepo.isNotEmpty
+      ? 'https://github.com/$githubRepo/releases/latest/download/orderdesk-latest.apk'
+      : fallbackApkUrl;
 
   static Future<InstalledAppVersion> getInstalledVersion() async {
     try {
@@ -59,8 +64,10 @@ class AppVersionService {
       AppVersionInfo remote, InstalledAppVersion installed) {
     if (remote.buildNumber > installed.buildNumber) return true;
     if (remote.buildNumber < installed.buildNumber) return false;
-    final rParts = remote.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final iParts = installed.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final rParts =
+        remote.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final iParts =
+        installed.version.split('.').map((e) => int.tryParse(e) ?? 0).toList();
     final len = rParts.length > iParts.length ? rParts.length : iParts.length;
     for (int i = 0; i < len; i++) {
       final r = i < rParts.length ? rParts[i] : 0;
@@ -72,29 +79,74 @@ class AppVersionService {
   }
 
   static Future<AppVersionInfo?> fetchLatest() async {
-    final candidates = <Uri>[];
     final ts = DateTime.now().millisecondsSinceEpoch;
+    final candidates = <Uri>[];
+
+    if (githubRepo.isNotEmpty) {
+      candidates.add(Uri.parse(
+          'https://github.com/$githubRepo/releases/latest/download/version.json?t=$ts'));
+      candidates.add(Uri.parse(
+          'https://api.github.com/repos/$githubRepo/releases/latest'));
+    }
     if (kIsWeb) {
       candidates.add(Uri.base.resolve('version.json?t=$ts'));
     }
-    candidates.add(Uri.parse('$versionJsonUrl?t=$ts'));
+    candidates.add(Uri.parse('$fallbackVersionJsonUrl?t=$ts'));
 
     for (final uri in candidates) {
       try {
-        final resp = await http.get(uri).timeout(const Duration(seconds: 6));
+        final resp = await http.get(uri, headers: {
+          'Accept': 'application/json',
+        }).timeout(const Duration(seconds: 7));
         if (resp.statusCode != 200) continue;
         final trimmed = resp.body.trimLeft();
         if (!trimmed.startsWith('{')) continue;
         final map = jsonDecode(trimmed) as Map<String, dynamic>;
-        return AppVersionInfo(
-          version: (map['version'] ?? fallbackVersion).toString(),
-          buildNumber:
-              ((map['buildNumber'] ?? fallbackBuildNumber) as num).toInt(),
-          apkUrl: (map['apkUrl'] ?? defaultApkUrl).toString(),
-          updatedAt: (map['updatedAt'] ?? '').toString(),
-        );
+
+        // Support version.json format
+        if (map.containsKey('version') && map.containsKey('buildNumber')) {
+          return AppVersionInfo(
+            version: (map['version'] ?? fallbackVersion).toString(),
+            buildNumber:
+                ((map['buildNumber'] ?? fallbackBuildNumber) as num).toInt(),
+            apkUrl: (map['apkUrl'] ?? defaultApkUrl).toString(),
+            updatedAt: (map['updatedAt'] ?? '').toString(),
+          );
+        }
+
+        // Support GitHub Releases REST API fallback
+        if (map.containsKey('assets')) {
+          final assets = (map['assets'] as List<dynamic>? ?? []);
+          String? apkDownload;
+          for (final asset in assets) {
+            if (asset is Map<String, dynamic>) {
+              final name = (asset['name'] ?? '').toString().toLowerCase();
+              if (name.endsWith('.apk')) {
+                apkDownload =
+                    (asset['browser_download_url'] ?? '').toString();
+                break;
+              }
+            }
+          }
+          if (apkDownload != null && apkDownload.isNotEmpty) {
+            final titleOrTag =
+                '${map['name'] ?? ''} ${map['tag_name'] ?? ''}';
+            final verMatch =
+                RegExp(r'(\d+\.\d+\.\d+)').firstMatch(titleOrTag);
+            final buildMatch =
+                RegExp(r'Build\s*(\d+)', caseSensitive: false)
+                    .firstMatch(titleOrTag);
+            return AppVersionInfo(
+              version: verMatch?.group(1) ?? fallbackVersion,
+              buildNumber:
+                  int.tryParse(buildMatch?.group(1) ?? '') ?? fallbackBuildNumber,
+              apkUrl: apkDownload,
+              updatedAt: (map['published_at'] ?? '').toString(),
+            );
+          }
+        }
       } catch (_) {
-        // Try next candidate
+        // Try next source
       }
     }
     return null;
@@ -126,7 +178,7 @@ class AppVersionService {
     try {
       final request = http.Request('GET', Uri.parse(url));
       final response =
-          await client.send(request).timeout(const Duration(seconds: 20));
+          await client.send(request).timeout(const Duration(seconds: 25));
       if (response.statusCode != 200) {
         return 'Download failed (HTTP ${response.statusCode})';
       }
