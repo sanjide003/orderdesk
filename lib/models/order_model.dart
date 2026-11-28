@@ -48,6 +48,8 @@ class OrderModel {
   final String address;
   final List<OrderItem> items;
   final double subtotal;
+  final double discountPercent;
+  final double discountAmount;
   final double deliveryCharge;
   final double totalAmount;
   final String status;
@@ -76,6 +78,8 @@ class OrderModel {
     this.address = '',
     required this.items,
     required this.subtotal,
+    this.discountPercent = 0,
+    this.discountAmount = 0,
     required this.deliveryCharge,
     required this.totalAmount,
     this.status = 'New Inquiry',
@@ -109,6 +113,8 @@ class OrderModel {
     String? address,
     List<OrderItem>? items,
     double? subtotal,
+    double? discountPercent,
+    double? discountAmount,
     double? deliveryCharge,
     double? totalAmount,
     String? status,
@@ -127,6 +133,8 @@ class OrderModel {
       address: address ?? this.address,
       items: items ?? this.items,
       subtotal: subtotal ?? this.subtotal,
+      discountPercent: discountPercent ?? this.discountPercent,
+      discountAmount: discountAmount ?? this.discountAmount,
       deliveryCharge: deliveryCharge ?? this.deliveryCharge,
       totalAmount: totalAmount ?? this.totalAmount,
       status: status ?? this.status,
@@ -157,6 +165,8 @@ class OrderModel {
           .map((e) => OrderItem.fromMap(Map<String, dynamic>.from(e as Map)))
           .toList(),
       subtotal: ((map['subtotal'] ?? 0) as num).toDouble(),
+      discountPercent: ((map['discountPercent'] ?? 0) as num).toDouble(),
+      discountAmount: ((map['discountAmount'] ?? 0) as num).toDouble(),
       deliveryCharge: ((map['deliveryCharge'] ?? 0) as num).toDouble(),
       totalAmount: ((map['totalAmount'] ?? 0) as num).toDouble(),
       status: (map['status'] ?? 'New Inquiry') as String,
@@ -178,6 +188,8 @@ class OrderModel {
         'address': address,
         'items': items.map((e) => e.toMap()).toList(),
         'subtotal': subtotal,
+        'discountPercent': discountPercent,
+        'discountAmount': discountAmount,
         'deliveryCharge': deliveryCharge,
         'totalAmount': totalAmount,
         'status': status,

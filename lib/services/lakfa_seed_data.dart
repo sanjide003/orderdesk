@@ -137,28 +137,19 @@ class LakfaSeedData {
       order: 5,
       title: 'Payment Details & Total',
       stage: 'payment',
-      bodyMl: '*Payment Details*\n\n'
+      bodyMl: '{{order_bill}}\n\n'
+          '*Payment Details*\n'
           'മുകളിൽ നൽകിയിരിക്കുന്ന {{payment_bank}} സ്കാൻ ചെയ്ത് പേയ്മെന്റ് ചെയ്യുക.\n\n'
-          '*ആകെ അടയ്ക്കേണ്ട തുക:*\n'
-          '• Product Price: {{subtotal}}\n'
-          '• Delivery Charge: {{delivery_charge}}\n'
-          '• *Total Amount: {{total_amount}}*\n\n'
           'പേയ്മെന്റ് പൂർത്തിയാക്കിയ ശേഷം Payment Screenshot ഈ ചാറ്റിൽ അയച്ചുതരുക. നന്ദി.\n\n'
           '*{{brand_name}}*\n`{{tagline}}`',
-      bodyEn: '*Payment Details*\n\n'
+      bodyEn: '{{order_bill}}\n\n'
+          '*Payment Details*\n'
           'Please scan the {{payment_bank}} shared above to complete your payment.\n\n'
-          '*Amount Breakdown:*\n'
-          '• Product Price: {{subtotal}}\n'
-          '• Delivery Charge: {{delivery_charge}}\n'
-          '• *Total Amount: {{total_amount}}*\n\n'
           'Please share the payment screenshot in this chat after paying. Thank you!\n\n'
           '*{{brand_name}}*\n`{{tagline}}`',
-      bodyManglish: '*Payment Details*\n\n'
+      bodyManglish: '{{order_bill}}\n\n'
+          '*Payment Details*\n'
           'Mukalil nalkiyirikkunna {{payment_bank}} scan cheythu payment cheyyuka.\n\n'
-          '*Total Amount:*\n'
-          '• Product Price: {{subtotal}}\n'
-          '• Delivery Charge: {{delivery_charge}}\n'
-          '• *Total Amount: {{total_amount}}*\n\n'
           'Payment kazhinjal dayavayi Payment Screenshot ee chat-il ayachutharuka. Nandi!\n\n'
           '*{{brand_name}}*\n`{{tagline}}`',
     ),

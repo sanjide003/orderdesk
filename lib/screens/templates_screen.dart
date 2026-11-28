@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/business_profile.dart';
+import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../models/template_model.dart';
 import '../services/app_strings.dart';
@@ -337,11 +338,37 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 final idxLabel = (i + 1).toString().padLeft(2, '0');
                 final lang = _cardLang[tpl.id] ??
                     (widget.profile.appLanguage == 'en' ? 'en' : 'ml');
+                final sampleProduct = selectedProduct ??
+                    (widget.products.isNotEmpty
+                        ? widget.products.first
+                        : null);
+                final samplePack =
+                    sampleProduct != null && sampleProduct.packs.isNotEmpty
+                        ? sampleProduct.packs.first
+                        : null;
+                final sampleItems = sampleProduct != null && samplePack != null
+                    ? [
+                        OrderItem(
+                          productId: sampleProduct.id,
+                          productName: sampleProduct.name,
+                          packLabel: samplePack.label,
+                          unitPrice: samplePack.price,
+                          packDeliveryCharge: samplePack.deliveryCharge,
+                          quantity: 1,
+                        )
+                      ]
+                    : const <OrderItem>[];
+                final sampleSub = samplePack?.price ?? 0;
+                final sampleDel = samplePack?.deliveryCharge ?? 0;
                 final rendered = TemplateEngine.render(
                   templateBody: tpl.bodyForLang(lang),
                   profile: widget.profile,
                   products: widget.products,
                   selectedProduct: selectedProduct,
+                  orderItems: sampleItems,
+                  subtotal: sampleSub,
+                  deliveryCharge: sampleDel,
+                  totalAmount: sampleSub + sampleDel,
                 );
 
                 return Container(

@@ -280,11 +280,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
       templateBody: body,
       profile: widget.profile,
       products: widget.products,
+      orderItems: order.items,
       subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      discountPercent: order.discountPercent,
       deliveryCharge: order.deliveryCharge,
       totalAmount: order.totalAmount,
       packSummary: order.itemsSummary,
       trackingId: trackingIdOverride ?? order.trackingId,
+      includeOrderBillHeader: stage == 'payment' && order.items.isNotEmpty,
     );
     await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
   }
@@ -618,6 +622,55 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     ],
                                   ),
                                 )),
+                            if (order.discountAmount > 0)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 2),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(s.t('discount'),
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF0F766E),
+                                            fontWeight: FontWeight.w600)),
+                                    Text(
+                                      TemplateEngine.formatDiscount(
+                                        order.discountAmount,
+                                        discountPercent: order.discountPercent,
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF0F766E),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(s.t('delivery'),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade700)),
+                                  Text(
+                                    order.deliveryCharge <= 0
+                                        ? s.t('free_delivery')
+                                        : TemplateEngine.formatMoney(
+                                            order.deliveryCharge),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
                             if (order.address.isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Container(

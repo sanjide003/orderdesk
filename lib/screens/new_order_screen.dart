@@ -41,6 +41,8 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
   final _nameCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _manualDeliveryCtrl = TextEditingController();
+  final _discountPercentCtrl = TextEditingController();
+  final _discountFlatCtrl = TextEditingController();
   final Map<String, int> _cartQty = {};
   String _payLang = 'ml';
 
@@ -72,6 +74,8 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     _nameCtrl.dispose();
     _addressCtrl.dispose();
     _manualDeliveryCtrl.dispose();
+    _discountPercentCtrl.dispose();
+    _discountFlatCtrl.dispose();
     super.dispose();
   }
 
@@ -102,6 +106,8 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
       _nameCtrl.clear();
       _addressCtrl.clear();
       _manualDeliveryCtrl.clear();
+      _discountPercentCtrl.clear();
+      _discountFlatCtrl.clear();
       _cartQty.clear();
     });
   }
@@ -201,6 +207,8 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
       address: _addressCtrl.text.trim(),
       items: items,
       subtotal: calc.subtotal,
+      discountPercent: calc.discountPercent,
+      discountAmount: calc.discountAmount,
       deliveryCharge: calc.deliveryCharge,
       totalAmount: calc.total,
       status: items.isNotEmpty ? 'Payment Pending' : 'New Inquiry',
@@ -220,10 +228,14 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           templateBody: payTpl.bodyForLang(_payLang),
           profile: widget.profile,
           products: widget.products,
+          orderItems: items,
           subtotal: calc.subtotal,
+          discountAmount: calc.discountAmount,
+          discountPercent: calc.discountPercent,
           deliveryCharge: calc.deliveryCharge,
           totalAmount: calc.total,
           packSummary: order.itemsSummary,
+          includeOrderBillHeader: true,
         );
         await WhatsAppService.openDirectChat(phone: order.phone, message: msg);
       }
@@ -240,10 +252,14 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
     final s = widget.s;
     final items = _buildCartItems();
     final manualDelivery = double.tryParse(_manualDeliveryCtrl.text.trim());
+    final discountPercent = double.tryParse(_discountPercentCtrl.text.trim());
+    final discountFlat = double.tryParse(_discountFlatCtrl.text.trim());
     final calc = DeliveryCalculator.calculate(
       items: items,
       rules: widget.rules,
       manualDeliveryOverride: manualDelivery,
+      discountPercent: discountPercent,
+      discountFlatAmount: discountFlat,
     );
 
     return StreamBuilder<List<CustomerModel>>(
@@ -436,38 +452,97 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${s.t("subtotal")}: ${TemplateEngine.formatMoney(calc.subtotal)}  ·  ${s.t("delivery")}: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}',
-                          style: TextStyle(
-                              fontSize: 11.5, color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${s.t("total")}: ${TemplateEngine.formatMoney(calc.total)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 110,
                     child: TextField(
-                      controller: _manualDeliveryCtrl,
-                      keyboardType: TextInputType.number,
-                      onChanged: (_) => setState(() {}),
+                      controller: _discountPercentCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (v) {
+                        if (v.trim().isNotEmpty &&
+                            _discountFlatCtrl.text.isNotEmpty) {
+                          _discountFlatCtrl.clear();
+                        }
+                        setState(() {});
+                      },
                       decoration: InputDecoration(
-                        labelText: s.t('override_delivery'),
+                        labelText: s.t('discount_percent'),
+                        suffixText: '%',
                         isDense: true,
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _discountFlatCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (v) {
+                        if (v.trim().isNotEmpty &&
+                            _discountPercentCtrl.text.isNotEmpty) {
+                          _discountPercentCtrl.clear();
+                        }
+                        setState(() {});
+                      },
+                      decoration: InputDecoration(
+                        labelText: s.t('discount_amount'),
+                        prefixText: '₹',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _manualDeliveryCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        labelText: s.t('override_delivery'),
+                        prefixText: '₹',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${s.t("items_total")}: ${TemplateEngine.formatMoney(calc.subtotal)}  ·  ${s.t("delivery")}: ${calc.deliveryCharge <= 0 ? "FREE" : TemplateEngine.formatMoney(calc.deliveryCharge)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  if (calc.discountAmount > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '${s.t("discount")}: ${TemplateEngine.formatDiscount(calc.discountAmount, discountPercent: calc.discountPercent)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F766E),
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    '${s.t("total")}: ${TemplateEngine.formatMoney(calc.total)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 19,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                 ],
