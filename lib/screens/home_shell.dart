@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/business_profile.dart';
@@ -31,6 +32,9 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   final _service = FirestoreService();
   int _tabIndex = 0; // 0..7 across all workspace sections
+  final List<int> _tabHistory = [];
+  DateTime? _lastBackPressedAt;
+  Timer? _backExitTimer;
   bool _sidebarExpanded = true;
   CustomerModel? _prefilledCustomer;
   bool _checkedStartupUpdate = false;
@@ -39,6 +43,12 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkStartupUpdate());
+  }
+
+  @override
+  void dispose() {
+    _backExitTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkStartupUpdate() async {
@@ -121,6 +131,9 @@ class _HomeShellState extends State<HomeShell> {
                         const DialogThemeData(backgroundColor: Colors.white),
                     bottomSheetTheme: const BottomSheetThemeData(
                         backgroundColor: Colors.white),
+                    inputDecorationTheme: const InputDecorationTheme(
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                    ),
                   ),
                   child: StreamBuilder<DeliveryRules>(
                     stream: _service.watchDeliveryRules(),
@@ -143,7 +156,65 @@ class _HomeShellState extends State<HomeShell> {
                                   final orders = ordSnap.data ?? [];
 
                                   void selectTab(int i) {
-                                    setState(() => _tabIndex = i);
+                                    if (i == _tabIndex) return;
+                                    _backExitTimer?.cancel();
+                                    setState(() {
+                                      _lastBackPressedAt = null;
+                                      _tabHistory.add(_tabIndex);
+                                      if (_tabHistory.length > 25) {
+                                        _tabHistory.removeAt(0);
+                                      }
+                                      _tabIndex = i;
+                                    });
+                                  }
+
+                                  final mobileTab =
+                                      _tabIndex > 3 ? 0 : _tabIndex;
+                                  final activeTab =
+                                      isDesktop ? _tabIndex : mobileTab;
+                                  final canExitNow = _tabHistory.isEmpty &&
+                                      activeTab == 0 &&
+                                      _lastBackPressedAt != null &&
+                                      DateTime.now().difference(
+                                              _lastBackPressedAt!) <=
+                                          const Duration(seconds: 2);
+
+                                  void handleShellBack(bool didPop) {
+                                    if (didPop) return;
+                                    if (_tabHistory.isNotEmpty) {
+                                      _backExitTimer?.cancel();
+                                      setState(() {
+                                        _lastBackPressedAt = null;
+                                        var prev = _tabHistory.removeLast();
+                                        if (!isDesktop && prev > 3) {
+                                          prev = 0;
+                                        }
+                                        _tabIndex = prev;
+                                      });
+                                      return;
+                                    }
+                                    if (activeTab != 0) {
+                                      _backExitTimer?.cancel();
+                                      setState(() {
+                                        _lastBackPressedAt = null;
+                                        _tabIndex = 0;
+                                      });
+                                      return;
+                                    }
+                                    final now = DateTime.now();
+                                    _backExitTimer?.cancel();
+                                    setState(() => _lastBackPressedAt = now);
+                                    _backExitTimer = Timer(
+                                      const Duration(seconds: 2),
+                                      () {
+                                        if (mounted) {
+                                          setState(
+                                              () => _lastBackPressedAt = null);
+                                        }
+                                      },
+                                    );
+                                    UiHelpers.showFeedback(
+                                        context, s.t('press_back_again'));
                                   }
 
                                   void openProducts() {
@@ -174,9 +245,17 @@ class _HomeShellState extends State<HomeShell> {
                                         builder: (_) => CustomersScreen(
                                           service: _service,
                                           onTakeOrder: (customer) {
+                                            _backExitTimer?.cancel();
                                             setState(() {
+                                              _lastBackPressedAt = null;
                                               _prefilledCustomer = customer;
-                                              _tabIndex = 2;
+                                              if (_tabIndex != 2) {
+                                                _tabHistory.add(_tabIndex);
+                                                if (_tabHistory.length > 25) {
+                                                  _tabHistory.removeAt(0);
+                                                }
+                                                _tabIndex = 2;
+                                              }
                                             });
                                           },
                                         ),
@@ -263,9 +342,17 @@ class _HomeShellState extends State<HomeShell> {
                                       service: _service,
                                       embedded: true,
                                       onTakeOrder: (customer) {
+                                        _backExitTimer?.cancel();
                                         setState(() {
+                                          _lastBackPressedAt = null;
                                           _prefilledCustomer = customer;
-                                          _tabIndex = 2;
+                                          if (_tabIndex != 2) {
+                                            _tabHistory.add(_tabIndex);
+                                            if (_tabHistory.length > 25) {
+                                              _tabHistory.removeAt(0);
+                                            }
+                                            _tabIndex = 2;
+                                          }
                                         });
                                       },
                                     ),
@@ -339,7 +426,11 @@ class _HomeShellState extends State<HomeShell> {
                                   if (isDesktop) {
                                     final currentTitle =
                                         navItems[_tabIndex].label;
-                                    return Scaffold(
+                                    return PopScope(
+                                      canPop: canExitNow,
+                                      onPopInvokedWithResult: (didPop, _) =>
+                                          handleShellBack(didPop),
+                                      child: Scaffold(
                                       body: Row(
                                         children: [
                                           AnimatedContainer(
@@ -746,19 +837,15 @@ class _HomeShellState extends State<HomeShell> {
                                           ),
                                         ],
                                       ),
+                                    ),
                                     );
                                   }
 
                                   // Mobile & Narrow Viewport Layout
-                                  final mobileTab =
-                                      _tabIndex > 3 ? 0 : _tabIndex;
                                   return PopScope(
-                                    canPop: mobileTab == 0,
-                                    onPopInvokedWithResult: (didPop, _) {
-                                      if (!didPop && mobileTab != 0) {
-                                        selectTab(0);
-                                      }
-                                    },
+                                    canPop: canExitNow,
+                                    onPopInvokedWithResult: (didPop, _) =>
+                                        handleShellBack(didPop),
                                     child: Scaffold(
                                       backgroundColor: const Color(0xFFF4F7F6),
                                     appBar: AppBar(

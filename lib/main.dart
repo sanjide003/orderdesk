@@ -122,6 +122,9 @@ class _OrderDeskAppState extends State<OrderDeskApp> {
         dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
         bottomSheetTheme:
             const BottomSheetThemeData(backgroundColor: Colors.white),
+        inputDecorationTheme: const InputDecorationTheme(
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+        ),
       ),
       home: _initError != null
           ? Scaffold(

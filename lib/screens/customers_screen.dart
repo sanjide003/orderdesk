@@ -127,52 +127,67 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  FilledButton(
-                    onPressed: () async {
-                      if (phoneCtrl.text.trim().isEmpty &&
-                          nameCtrl.text.trim().isEmpty) {
-                        UiHelpers.showFeedback(ctx, s.t('enter_phone_first'),
-                            isError: true);
-                        return;
-                      }
-                      if (existing != null) {
-                        final ok = await UiHelpers.confirmDialog(
-                          ctx,
-                          title: s.t('confirm_save'),
-                          message: s.t('save_changes_q'),
-                          confirmLabel: s.t('save'),
-                          cancelLabel: s.t('cancel'),
-                        );
-                        if (!ok) return;
-                      }
-                      final now = DateTime.now();
-                      final model = CustomerModel(
-                        id: existing?.id ?? '',
-                        name: nameCtrl.text.trim().isEmpty
-                            ? 'Customer'
-                            : nameCtrl.text.trim(),
-                        phone: phoneCtrl.text.trim(),
-                        address: addrCtrl.text.trim(),
-                        notes: notesCtrl.text.trim(),
-                        source: existing?.source ?? 'manual',
-                        createdAt: existing?.createdAt ?? now,
-                        updatedAt: now,
-                      );
-                      try {
-                        await widget.service.saveCustomer(model);
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        if (context.mounted) {
-                          UiHelpers.showFeedback(
-                              context, s.t('customer_saved'));
-                        }
-                      } catch (_) {
-                        if (context.mounted) {
-                          UiHelpers.showFeedback(context, s.t('action_failed'),
-                              isError: true);
-                        }
-                      }
-                    },
-                    child: Text(s.t('save')),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(s.t('cancel')),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () async {
+                            if (phoneCtrl.text.trim().isEmpty &&
+                                nameCtrl.text.trim().isEmpty) {
+                              UiHelpers.showFeedback(
+                                  ctx, s.t('enter_phone_first'),
+                                  isError: true);
+                              return;
+                            }
+                            if (existing != null) {
+                              final ok = await UiHelpers.confirmDialog(
+                                ctx,
+                                title: s.t('confirm_save'),
+                                message: s.t('save_changes_q'),
+                                confirmLabel: s.t('save'),
+                                cancelLabel: s.t('cancel'),
+                              );
+                              if (!ok) return;
+                            }
+                            final now = DateTime.now();
+                            final model = CustomerModel(
+                              id: existing?.id ?? '',
+                              name: nameCtrl.text.trim().isEmpty
+                                  ? 'Customer'
+                                  : nameCtrl.text.trim(),
+                              phone: phoneCtrl.text.trim(),
+                              address: addrCtrl.text.trim(),
+                              notes: notesCtrl.text.trim(),
+                              source: existing?.source ?? 'manual',
+                              createdAt: existing?.createdAt ?? now,
+                              updatedAt: now,
+                            );
+                            try {
+                              await widget.service.saveCustomer(model);
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (context.mounted) {
+                                UiHelpers.showFeedback(
+                                    context, s.t('customer_saved'));
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                UiHelpers.showFeedback(
+                                    context, s.t('action_failed'),
+                                    isError: true);
+                              }
+                            }
+                          },
+                          child: Text(s.t('save')),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -671,6 +686,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                           onChanged: (v) =>
                                               setState(() => _query = v.trim()),
                                           decoration: InputDecoration(
+                                            labelText:
+                                                s.t('search_customers_label'),
                                             hintText: s.t('search_customers'),
                                             prefixIcon: const Icon(Icons.search,
                                                 size: 18),

@@ -213,38 +213,53 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              FilledButton(
-                onPressed: () async {
-                  final ok = await UiHelpers.confirmDialog(
-                    ctx,
-                    title: s.t('confirm_save'),
-                    message: s.t('save_changes_q'),
-                    confirmLabel: s.t('save'),
-                    cancelLabel: s.t('cancel'),
-                  );
-                  if (!ok) return;
-                  try {
-                    await widget.service.saveOrder(order.copyWith(
-                      customerName: nameCtrl.text.trim().isEmpty
-                          ? order.customerName
-                          : nameCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                      address: addrCtrl.text.trim(),
-                      trackingId: trackCtrl.text.trim(),
-                      notes: notesCtrl.text.trim(),
-                    ));
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
-                      UiHelpers.showFeedback(context, s.t('order_updated'));
-                    }
-                  } catch (_) {
-                    if (mounted) {
-                      UiHelpers.showFeedback(context, s.t('action_failed'),
-                          isError: true);
-                    }
-                  }
-                },
-                child: Text(s.t('save')),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(s.t('cancel')),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        final ok = await UiHelpers.confirmDialog(
+                          ctx,
+                          title: s.t('confirm_save'),
+                          message: s.t('save_changes_q'),
+                          confirmLabel: s.t('save'),
+                          cancelLabel: s.t('cancel'),
+                        );
+                        if (!ok) return;
+                        try {
+                          await widget.service.saveOrder(order.copyWith(
+                            customerName: nameCtrl.text.trim().isEmpty
+                                ? order.customerName
+                                : nameCtrl.text.trim(),
+                            phone: phoneCtrl.text.trim(),
+                            address: addrCtrl.text.trim(),
+                            trackingId: trackCtrl.text.trim(),
+                            notes: notesCtrl.text.trim(),
+                          ));
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            UiHelpers.showFeedback(
+                                context, s.t('order_updated'));
+                          }
+                        } catch (_) {
+                          if (mounted) {
+                            UiHelpers.showFeedback(
+                                context, s.t('action_failed'),
+                                isError: true);
+                          }
+                        }
+                      },
+                      child: Text(s.t('save')),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -448,6 +463,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         onChanged: (v) =>
                             setState(() => _searchQuery = v.trim()),
                         decoration: InputDecoration(
+                          labelText: s.t('search_orders_label'),
                           hintText: s.t('search_orders_hint'),
                           prefixIcon: const Icon(Icons.search, size: 18),
                           suffixIcon: _searchQuery.isNotEmpty

@@ -380,6 +380,11 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                               style: const TextStyle(color: Colors.red)),
                         ),
                       const Spacer(),
+                      OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(s.t('cancel')),
+                      ),
+                      const SizedBox(width: 8),
                       FilledButton(
                         onPressed: () async {
                           if (titleCtrl.text.trim().isEmpty) return;
@@ -500,7 +505,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  hintText: s.t('quick_phone'),
+                  labelText: s.t('quick_phone'),
+                  hintText: '9876543210',
                   prefixIcon: const Icon(Icons.phone_outlined, size: 18),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.clear, size: 16),

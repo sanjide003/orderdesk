@@ -250,6 +250,9 @@ class AppStrings {
     'confirm_mark_paid_q': 'Mark this order as Paid?',
     'confirm_send_review_q': 'Send WhatsApp review link and mark Review Sent?',
     'action_failed': 'Action failed. Please try again.',
+    'press_back_again': 'Press back again to exit',
+    'search_orders_label': 'Search Orders',
+    'search_customers_label': 'Search Customers',
   };
 
   static const Map<String, String> _ml = {
@@ -493,5 +496,8 @@ class AppStrings {
     'confirm_mark_paid_q': 'ഈ ഓർഡർ Paid ആയി അപ്‌ഡേറ്റ് ചെയ്യണോ?',
     'confirm_send_review_q': 'വാട്സാപ്പ് റിവ്യൂ ലിങ്ക് അയച്ച് Review Sent ആക്കണോ?',
     'action_failed': 'പ്രവർത്തനം പരാജയപ്പെട്ടു. വീണ്ടും ശ്രമിക്കുക.',
+    'press_back_again': 'പുറത്തുപോകാൻ വീണ്ടും ബാക്ക് അമർത്തുക',
+    'search_orders_label': 'ഓർഡറുകൾ തിരയുക',
+    'search_customers_label': 'കസ്റ്റമർ തിരയുക',
   };
 }

@@ -148,6 +148,7 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
                   controller: searchCtrl,
                   onChanged: (v) => setModalState(() => q = v.trim()),
                   decoration: InputDecoration(
+                    labelText: s.t('search_customers_label'),
                     hintText: s.t('search_customers'),
                     prefixIcon: const Icon(Icons.search, size: 18),
                     isDense: true,
@@ -449,68 +450,103 @@ class _NewOrderScreenState extends State<NewOrderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _discountPercentCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (v) {
-                        if (v.trim().isNotEmpty &&
-                            _discountFlatCtrl.text.isNotEmpty) {
-                          _discountFlatCtrl.clear();
-                        }
-                        setState(() {});
-                      },
-                      decoration: InputDecoration(
-                        labelText: s.t('discount_percent'),
-                        suffixText: '%',
-                        isDense: true,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
+              LayoutBuilder(
+                builder: (context, calcBox) {
+                  final discountPctField = TextField(
+                    controller: _discountPercentCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (v) {
+                      if (v.trim().isNotEmpty &&
+                          _discountFlatCtrl.text.isNotEmpty) {
+                        _discountFlatCtrl.clear();
+                      }
+                      setState(() {});
+                    },
+                    decoration: InputDecoration(
+                      labelText: s.t('discount_percent'),
+                      hintText: '0',
+                      suffixText: '%',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      floatingLabelStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _discountFlatCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (v) {
-                        if (v.trim().isNotEmpty &&
-                            _discountPercentCtrl.text.isNotEmpty) {
-                          _discountPercentCtrl.clear();
-                        }
-                        setState(() {});
-                      },
-                      decoration: InputDecoration(
-                        labelText: s.t('discount_amount'),
-                        prefixText: '₹',
-                        isDense: true,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                  );
+                  final discountFlatField = TextField(
+                    controller: _discountFlatCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (v) {
+                      if (v.trim().isNotEmpty &&
+                          _discountPercentCtrl.text.isNotEmpty) {
+                        _discountPercentCtrl.clear();
+                      }
+                      setState(() {});
+                    },
+                    decoration: InputDecoration(
+                      labelText: s.t('discount_amount'),
+                      hintText: '0',
+                      prefixText: '₹',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      floatingLabelStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: _manualDeliveryCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                      decoration: InputDecoration(
-                        labelText: s.t('override_delivery'),
-                        prefixText: '₹',
-                        isDense: true,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                  );
+                  final deliveryField = TextField(
+                    controller: _manualDeliveryCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: s.t('override_delivery'),
+                      hintText: '0',
+                      prefixText: '₹',
+                      floatingLabelBehavior: FloatingLabelBehavior.always,
+                      floatingLabelStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
-                  ),
-                ],
+                  );
+
+                  if (calcBox.maxWidth >= 380) {
+                    return Row(
+                      children: [
+                        Expanded(child: discountPctField),
+                        const SizedBox(width: 8),
+                        Expanded(child: discountFlatField),
+                        const SizedBox(width: 8),
+                        Expanded(child: deliveryField),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: discountPctField),
+                          const SizedBox(width: 8),
+                          Expanded(child: discountFlatField),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      deliveryField,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               Column(

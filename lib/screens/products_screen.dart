@@ -230,45 +230,60 @@ class ProductsScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () async {
-                    if (nameCtrl.text.trim().isEmpty) return;
-                    if (existing != null) {
-                      final ok = await UiHelpers.confirmDialog(
-                        ctx,
-                        title: s.t('confirm_save'),
-                        message: s.t('save_changes_q'),
-                        confirmLabel: s.t('save'),
-                        cancelLabel: s.t('cancel'),
-                      );
-                      if (!ok) return;
-                    }
-                    final model = ProductModel(
-                      id: existing?.id ?? '',
-                      name: nameCtrl.text.trim(),
-                      origin: originCtrl.text.trim(),
-                      active: active,
-                      packs: packs,
-                      highlights: highlightsCtrl.text
-                          .split('\n')
-                          .map((e) => e.trim())
-                          .where((e) => e.isNotEmpty)
-                          .toList(),
-                    );
-                    try {
-                      await service.saveProduct(model);
-                      if (ctx.mounted) Navigator.pop(ctx);
-                      if (context.mounted) {
-                        UiHelpers.showFeedback(context, s.t('product_saved'));
-                      }
-                    } catch (_) {
-                      if (context.mounted) {
-                        UiHelpers.showFeedback(context, s.t('action_failed'),
-                            isError: true);
-                      }
-                    }
-                  },
-                  child: Text(s.t('save_product')),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(s.t('cancel')),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          if (nameCtrl.text.trim().isEmpty) return;
+                          if (existing != null) {
+                            final ok = await UiHelpers.confirmDialog(
+                              ctx,
+                              title: s.t('confirm_save'),
+                              message: s.t('save_changes_q'),
+                              confirmLabel: s.t('save'),
+                              cancelLabel: s.t('cancel'),
+                            );
+                            if (!ok) return;
+                          }
+                          final model = ProductModel(
+                            id: existing?.id ?? '',
+                            name: nameCtrl.text.trim(),
+                            origin: originCtrl.text.trim(),
+                            active: active,
+                            packs: packs,
+                            highlights: highlightsCtrl.text
+                                .split('\n')
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty)
+                                .toList(),
+                          );
+                          try {
+                            await service.saveProduct(model);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            if (context.mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('product_saved'));
+                            }
+                          } catch (_) {
+                            if (context.mounted) {
+                              UiHelpers.showFeedback(
+                                  context, s.t('action_failed'),
+                                  isError: true);
+                            }
+                          }
+                        },
+                        child: Text(s.t('save_product')),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
