@@ -1,23 +1,30 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'android_updater_bridge_stub.dart'
+    if (dart.library.io) 'android_updater_bridge_io.dart';
+import 'web_pwa_bridge_stub.dart'
+    if (dart.library.js_interop) 'web_pwa_bridge_web.dart';
+
+export 'android_updater_bridge_stub.dart'
+    if (dart.library.io) 'android_updater_bridge_io.dart'
+    show AndroidDownloadResult, AndroidNativeVersion;
 
 class AppVersionInfo {
   final String version;
   final int buildNumber;
   final String apkUrl;
   final String updatedAt;
+  final bool isWebManifest;
 
   const AppVersionInfo({
     required this.version,
     required this.buildNumber,
     required this.apkUrl,
     required this.updatedAt,
+    this.isWebManifest = false,
   });
 }
 
@@ -34,6 +41,10 @@ class InstalledAppVersion {
 class AppVersionService {
   static const String fallbackVersion = '4.0.0';
   static const int fallbackBuildNumber = 4;
+  static const int compiledBuildNumber =
+      int.fromEnvironment('APP_BUILD_NUMBER', defaultValue: 0);
+  static const int compiledWebBuildNumber =
+      int.fromEnvironment('WEB_BUILD_NUMBER', defaultValue: 0);
   static const String githubRepo = String.fromEnvironment('GITHUB_REPO');
   static const String fallbackVersionJsonUrl =
       'https://orderdeskwapp.vercel.app/version.json';
@@ -45,23 +56,53 @@ class AppVersionService {
       : fallbackApkUrl;
 
   static Future<InstalledAppVersion> getInstalledVersion() async {
+    if (kIsWeb) {
+      final build = compiledWebBuildNumber > 0
+          ? compiledWebBuildNumber
+          : fallbackBuildNumber;
+      return InstalledAppVersion(
+        version: fallbackVersion,
+        buildNumber: build,
+      );
+    }
+
+    try {
+      final native = await AndroidUpdaterBridge.getNativeVersionInfo();
+      if (native != null && (native.version.isNotEmpty || native.buildNumber > 0)) {
+        return InstalledAppVersion(
+          version: native.version.isNotEmpty ? native.version : fallbackVersion,
+          buildNumber: native.buildNumber > 0
+              ? native.buildNumber
+              : (compiledBuildNumber > 0
+                  ? compiledBuildNumber
+                  : fallbackBuildNumber),
+        );
+      }
+    } catch (_) {}
+
     try {
       final info = await PackageInfo.fromPlatform();
-      final build = int.tryParse(info.buildNumber) ?? fallbackBuildNumber;
+      final build = int.tryParse(info.buildNumber) ??
+          (compiledBuildNumber > 0 ? compiledBuildNumber : fallbackBuildNumber);
       return InstalledAppVersion(
         version: info.version.isNotEmpty ? info.version : fallbackVersion,
         buildNumber: build > 0 ? build : fallbackBuildNumber,
       );
     } catch (_) {
-      return const InstalledAppVersion(
+      return InstalledAppVersion(
         version: fallbackVersion,
-        buildNumber: fallbackBuildNumber,
+        buildNumber:
+            compiledBuildNumber > 0 ? compiledBuildNumber : fallbackBuildNumber,
       );
     }
   }
 
   static bool isRemoteNewer(
       AppVersionInfo remote, InstalledAppVersion installed) {
+    if (kIsWeb && compiledWebBuildNumber <= 0 && remote.isWebManifest) {
+      // Dev/local preview without injected WEB_BUILD_NUMBER should not nag on web
+      return false;
+    }
     if (remote.buildNumber > installed.buildNumber) return true;
     if (remote.buildNumber < installed.buildNumber) return false;
     final rParts =
@@ -80,41 +121,61 @@ class AppVersionService {
 
   static Future<AppVersionInfo?> fetchLatest() async {
     final ts = DateTime.now().millisecondsSinceEpoch;
-    final candidates = <Uri>[];
+    final candidates = <_ManifestCandidate>[];
+
+    if (kIsWeb) {
+      candidates.add(_ManifestCandidate(
+        uri: Uri.base.resolve('app_version.json?t=$ts'),
+        isWebManifest: true,
+      ));
+      candidates.add(_ManifestCandidate(
+        uri: Uri.base.resolve('version.json?t=$ts'),
+        isWebManifest: false,
+      ));
+    }
 
     if (githubRepo.isNotEmpty) {
-      candidates.add(Uri.parse(
-          'https://github.com/$githubRepo/releases/latest/download/version.json?t=$ts'));
-      candidates.add(Uri.parse(
-          'https://api.github.com/repos/$githubRepo/releases/latest'));
+      candidates.add(_ManifestCandidate(
+        uri: Uri.parse(
+            'https://github.com/$githubRepo/releases/latest/download/version.json?t=$ts'),
+        isWebManifest: false,
+      ));
+      candidates.add(_ManifestCandidate(
+        uri: Uri.parse(
+            'https://api.github.com/repos/$githubRepo/releases/latest'),
+        isWebManifest: false,
+      ));
     }
-    if (kIsWeb) {
-      candidates.add(Uri.base.resolve('version.json?t=$ts'));
-    }
-    candidates.add(Uri.parse('$fallbackVersionJsonUrl?t=$ts'));
 
-    for (final uri in candidates) {
+    if (!kIsWeb) {
+      candidates.add(_ManifestCandidate(
+        uri: Uri.parse('$fallbackVersionJsonUrl?t=$ts'),
+        isWebManifest: false,
+      ));
+    }
+
+    for (final candidate in candidates) {
       try {
-        final resp = await http.get(uri, headers: {
+        final resp = await http.get(candidate.uri, headers: {
           'Accept': 'application/json',
-        }).timeout(const Duration(seconds: 7));
+        }).timeout(const Duration(seconds: 8));
         if (resp.statusCode != 200) continue;
         final trimmed = resp.body.trimLeft();
         if (!trimmed.startsWith('{')) continue;
         final map = jsonDecode(trimmed) as Map<String, dynamic>;
 
-        // Support version.json format
         if (map.containsKey('version') && map.containsKey('buildNumber')) {
+          final rawApkUrl = (map['apkUrl'] ?? '').toString().trim();
           return AppVersionInfo(
             version: (map['version'] ?? fallbackVersion).toString(),
             buildNumber:
                 ((map['buildNumber'] ?? fallbackBuildNumber) as num).toInt(),
-            apkUrl: (map['apkUrl'] ?? defaultApkUrl).toString(),
+            apkUrl: rawApkUrl.isNotEmpty ? rawApkUrl : defaultApkUrl,
             updatedAt: (map['updatedAt'] ?? '').toString(),
+            isWebManifest: candidate.isWebManifest,
           );
         }
 
-        // Support GitHub Releases REST API fallback
         if (map.containsKey('assets')) {
           final assets = (map['assets'] as List<dynamic>? ?? []);
           String? apkDownload;
@@ -142,6 +203,7 @@ class AppVersionService {
                   int.tryParse(buildMatch?.group(1) ?? '') ?? fallbackBuildNumber,
               apkUrl: apkDownload,
               updatedAt: (map['published_at'] ?? '').toString(),
+              isWebManifest: false,
             );
           }
         }
@@ -156,11 +218,25 @@ class AppVersionService {
     final url = (customUrl != null && customUrl.isNotEmpty)
         ? customUrl
         : defaultApkUrl;
+    if (kIsWeb && WebPwaBridge.openExternalUrl(url)) {
+      return true;
+    }
     return launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
-  /// Downloads APK in-app with live progress and launches Android installer
-  static Future<String?> downloadAndInstallApk({
+  static Future<String?> getDownloadedApkPath() =>
+      AndroidUpdaterBridge.getDownloadedApkPath();
+
+  static Future<bool> canRequestPackageInstalls() =>
+      AndroidUpdaterBridge.canRequestPackageInstalls();
+
+  static Future<bool> openInstallPermissionSettings() =>
+      AndroidUpdaterBridge.openInstallPermissionSettings();
+
+  static Future<AndroidDownloadResult> installExistingApk() =>
+      AndroidUpdaterBridge.installExistingApk();
+
+  static Future<AndroidDownloadResult> downloadAndInstallApk({
     String? customUrl,
     required void Function(double progress) onProgress,
   }) async {
@@ -171,51 +247,41 @@ class AppVersionService {
     if (kIsWeb) {
       final ok = await downloadApk(url);
       onProgress(1.0);
-      return ok ? null : 'Could not open download URL';
+      return ok
+          ? const AndroidDownloadResult(success: true)
+          : const AndroidDownloadResult(
+              errorMessage: 'Could not open download URL',
+            );
     }
 
-    final client = http.Client();
-    try {
-      final request = http.Request('GET', Uri.parse(url));
-      final response =
-          await client.send(request).timeout(const Duration(seconds: 25));
-      if (response.statusCode != 200) {
-        return 'Download failed (HTTP ${response.statusCode})';
-      }
+    return AndroidUpdaterBridge.downloadAndInstall(
+      apkUrl: url,
+      onProgress: onProgress,
+    );
+  }
 
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/orderdesk-latest.apk');
-      if (await file.exists()) {
-        await file.delete();
-      }
+  // PWA & Web helpers
+  static bool canInstallPwa() => kIsWeb && WebPwaBridge.canInstallPwa();
 
-      final sink = file.openWrite();
-      final totalBytes = response.contentLength ?? 0;
-      int received = 0;
+  static bool isPwaStandalone() => kIsWeb && WebPwaBridge.isStandalone();
 
-      await for (final chunk in response.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (totalBytes > 0) {
-          onProgress((received / totalBytes).clamp(0.0, 1.0));
-        }
-      }
-      await sink.flush();
-      await sink.close();
-      onProgress(1.0);
+  static bool isIosSafari() => kIsWeb && WebPwaBridge.isIosSafari();
 
-      final openRes = await OpenFilex.open(
-        file.path,
-        type: 'application/vnd.android.package-archive',
-      );
-      if (openRes.type != ResultType.done) {
-        return openRes.message;
-      }
-      return null;
-    } catch (e) {
-      return e.toString();
-    } finally {
-      client.close();
+  static Future<String> promptPwaInstall() => WebPwaBridge.promptPwaInstall();
+
+  static void reloadWebWithFreshCache() {
+    if (kIsWeb) {
+      WebPwaBridge.reloadWithFreshCache();
     }
   }
+}
+
+class _ManifestCandidate {
+  final Uri uri;
+  final bool isWebManifest;
+
+  const _ManifestCandidate({
+    required this.uri,
+    required this.isWebManifest,
+  });
 }

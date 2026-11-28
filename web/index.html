@@ -82,11 +82,80 @@
     <div class="splash-title">OrderDesk</div>
     <div id="splash-sub" class="splash-sub">Loading workspace...</div>
     <div id="splash-spinner" class="spinner"></div>
-    <button id="splash-retry" class="retry-btn" onclick="window.location.reload()">Reload App</button>
+    <button id="splash-retry" class="retry-btn" onclick="window.orderDeskPwa && window.orderDeskPwa.reloadWithFreshCache()">Reload App</button>
   </div>
   <script>
     (function () {
+      var deferredPrompt = null;
       var done = false;
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        window.dispatchEvent(new CustomEvent('orderdesk-pwa-ready'));
+      });
+
+      window.addEventListener('appinstalled', function () {
+        deferredPrompt = null;
+        window.dispatchEvent(new CustomEvent('orderdesk-pwa-installed'));
+      });
+
+      window.orderDeskPwa = {
+        canInstall: function () {
+          return !!deferredPrompt;
+        },
+        isStandalone: function () {
+          return (
+            (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+            window.navigator.standalone === true
+          );
+        },
+        isIos: function () {
+          return /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+        },
+        promptInstall: function () {
+          if (!deferredPrompt) return Promise.resolve('unavailable');
+          var p = deferredPrompt;
+          deferredPrompt = null;
+          return p.prompt().then(function () {
+            return p.userChoice;
+          }).then(function (choice) {
+            return (choice && choice.outcome) || 'dismissed';
+          }).catch(function () {
+            return 'dismissed';
+          });
+        },
+        reloadWithFreshCache: function () {
+          var tasks = [];
+          if ('serviceWorker' in navigator) {
+            tasks.push(
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }).catch(function () {})
+            );
+          }
+          if ('caches' in window) {
+            tasks.push(
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }).catch(function () {})
+            );
+          }
+          Promise.all(tasks).finally(function () {
+            window.location.reload();
+          });
+        },
+        openExternalUrl: function (url) {
+          try {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return true;
+          } catch (_) {
+            window.location.href = url;
+            return true;
+          }
+        }
+      };
+
       function showRecovery(msg) {
         if (done) return;
         var sub = document.getElementById('splash-sub');
@@ -96,6 +165,7 @@
         if (sp) sp.style.display = 'none';
         if (btn) btn.style.display = 'inline-block';
       }
+
       window.addEventListener('flutter-first-frame', function () {
         done = true;
         var el = document.getElementById('splash');
@@ -104,11 +174,13 @@
           setTimeout(function () { el.remove(); }, 250);
         }
       });
+
       window.addEventListener('error', function (e) {
         if (!done && e && e.message) {
           showRecovery('Startup error: ' + e.message);
         }
       });
+
       setTimeout(function () {
         if (!done) {
           showRecovery('Taking longer than usual. Please reload.');

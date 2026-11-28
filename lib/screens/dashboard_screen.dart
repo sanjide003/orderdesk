@@ -575,18 +575,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                       ),
-                      onPressed: () => _openUpdateDialog(
-                        hasUpdate ? Colors.orange.shade800 : primary,
-                      ),
+                      onPressed: () {
+                        if (hasUpdate) {
+                          _openUpdateDialog(Colors.orange.shade800);
+                        } else {
+                          AppVersionService.downloadApk(_latestInfo?.apkUrl);
+                        }
+                      },
                       icon: const Icon(Icons.system_update_alt_rounded,
                           size: 18),
                       label: Text(
-                        hasUpdate ? s.t('update_now') : s.t('download_apk'),
+                        hasUpdate
+                            ? (kIsWeb && _latestInfo?.isWebManifest == true
+                                ? s.t('reload_web_update')
+                                : s.t('update_now'))
+                            : s.t('download_apk'),
                         style: const TextStyle(
                             fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
+                  if (kIsWeb &&
+                      !AppVersionService.isPwaStandalone() &&
+                      (AppVersionService.canInstallPwa() ||
+                          AppVersionService.isIosSafari())) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primary,
+                          side: BorderSide(color: primary),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          if (AppVersionService.canInstallPwa()) {
+                            await AppVersionService.promptPwaInstall();
+                            if (mounted) setState(() {});
+                          } else if (AppVersionService.isIosSafari() &&
+                              mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: Text(s.t('ios_install_title')),
+                                content: Text(s.t('ios_install_steps')),
+                                actions: [
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: Text(s.t('ok')),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.install_desktop_rounded,
+                            size: 17),
+                        label: Text(
+                          s.t('install_pwa_app'),
+                          style: const TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

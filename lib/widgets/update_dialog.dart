@@ -21,21 +21,100 @@ class UpdateDialog extends StatefulWidget {
   State<UpdateDialog> createState() => _UpdateDialogState();
 }
 
-class _UpdateDialogState extends State<UpdateDialog> {
+class _UpdateDialogState extends State<UpdateDialog> with WidgetsBindingObserver {
   bool _downloading = false;
+  bool _permissionRequired = false;
+  bool _hasDownloadedApk = false;
   double _progress = 0;
   String? _statusText;
   String? _error;
 
-  Future<void> _startUpdate() async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkCachedApk();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _permissionRequired && !kIsWeb) {
+      _checkPermissionAfterReturn();
+    }
+  }
+
+  Future<void> _checkCachedApk() async {
+    if (kIsWeb) return;
+    final path = await AppVersionService.getDownloadedApkPath();
+    final canInstall = await AppVersionService.canRequestPackageInstalls();
+    if (!mounted) return;
+    setState(() {
+      _hasDownloadedApk = path != null;
+      _permissionRequired = path != null && !canInstall;
+    });
+  }
+
+  Future<void> _checkPermissionAfterReturn() async {
+    final allowed = await AppVersionService.canRequestPackageInstalls();
+    if (!mounted) return;
+    if (allowed) {
+      setState(() => _permissionRequired = false);
+      await _installExisting();
+    }
+  }
+
+  Future<void> _installExisting() async {
     setState(() {
       _downloading = true;
+      _progress = 1.0;
+      _error = null;
+      _statusText = widget.s.t('opening_installer');
+    });
+
+    final res = await AppVersionService.installExistingApk();
+    if (!mounted) return;
+    if (res.permissionRequired) {
+      setState(() {
+        _downloading = false;
+        _hasDownloadedApk = true;
+        _permissionRequired = true;
+      });
+    } else if (res.success) {
+      Navigator.pop(context, true);
+    } else {
+      setState(() {
+        _downloading = false;
+        _error = res.errorMessage ?? 'Install failed';
+      });
+    }
+  }
+
+  Future<void> _startUpdate() async {
+    if (kIsWeb && widget.latest?.isWebManifest == true) {
+      AppVersionService.reloadWebWithFreshCache();
+      return;
+    }
+
+    if (!kIsWeb && _hasDownloadedApk) {
+      await _installExisting();
+      return;
+    }
+
+    setState(() {
+      _downloading = true;
+      _permissionRequired = false;
       _progress = 0;
       _error = null;
       _statusText = widget.s.t('downloading_apk');
     });
 
-    final err = await AppVersionService.downloadAndInstallApk(
+    final res = await AppVersionService.downloadAndInstallApk(
       customUrl: widget.latest?.apkUrl,
       onProgress: (p) {
         if (!mounted) return;
@@ -49,13 +128,19 @@ class _UpdateDialogState extends State<UpdateDialog> {
     );
 
     if (!mounted) return;
-    if (err != null) {
+    if (res.permissionRequired) {
       setState(() {
         _downloading = false;
-        _error = err;
+        _hasDownloadedApk = true;
+        _permissionRequired = true;
       });
-    } else {
+    } else if (res.success) {
       Navigator.pop(context, true);
+    } else {
+      setState(() {
+        _downloading = false;
+        _error = res.errorMessage ?? 'Update failed';
+      });
     }
   }
 
@@ -67,6 +152,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         : 'Latest APK';
     final currentVer =
         'v${widget.installed.version} (Build ${widget.installed.buildNumber})';
+    final isWebUpdate = kIsWeb && widget.latest?.isWebManifest == true;
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -84,8 +170,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              s.t('update_dialog_title'),
-              style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800),
+              _permissionRequired
+                  ? s.t('install_permission_title')
+                  : s.t('update_dialog_title'),
+              style:
+                  const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -94,7 +183,12 @@ class _UpdateDialogState extends State<UpdateDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(s.t('update_dialog_desc'), style: const TextStyle(fontSize: 13)),
+          Text(
+            _permissionRequired
+                ? s.t('install_permission_desc')
+                : s.t('update_dialog_desc'),
+            style: const TextStyle(fontSize: 13),
+          ),
           const SizedBox(height: 10),
           Container(
             width: double.infinity,
@@ -147,12 +241,46 @@ class _UpdateDialogState extends State<UpdateDialog> {
             onPressed: () => Navigator.pop(context, false),
             child: Text(s.t('later')),
           ),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: widget.primaryColor),
-          onPressed: _downloading ? null : _startUpdate,
-          icon: const Icon(Icons.system_update_rounded, size: 17),
-          label: Text(s.t('update_now')),
-        ),
+        if (_permissionRequired && !_downloading) ...[
+          OutlinedButton.icon(
+            onPressed: () => AppVersionService.openInstallPermissionSettings(),
+            icon: const Icon(Icons.settings_outlined, size: 16),
+            label: Text(s.t('open_install_settings')),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: widget.primaryColor),
+            onPressed: _installExisting,
+            icon: const Icon(Icons.install_mobile_rounded, size: 17),
+            label: Text(s.t('install_downloaded_apk')),
+          ),
+        ] else ...[
+          if (isWebUpdate)
+            OutlinedButton.icon(
+              onPressed: () =>
+                  AppVersionService.downloadApk(widget.latest?.apkUrl),
+              icon: const Icon(Icons.android_rounded, size: 16),
+              label: Text(s.t('download_apk')),
+            ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: widget.primaryColor),
+            onPressed: _downloading ? null : _startUpdate,
+            icon: Icon(
+              isWebUpdate
+                  ? Icons.refresh_rounded
+                  : _hasDownloadedApk
+                      ? Icons.install_mobile_rounded
+                      : Icons.system_update_rounded,
+              size: 17,
+            ),
+            label: Text(
+              isWebUpdate
+                  ? s.t('reload_web_update')
+                  : _hasDownloadedApk
+                      ? s.t('install_downloaded_apk')
+                      : s.t('update_now'),
+            ),
+          ),
+        ],
       ],
     );
   }
