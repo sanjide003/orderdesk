@@ -116,17 +116,8 @@ def main() -> None:
                 "}\n\n"
             )
             g = header + g
-        g = g.replace(
-            'signingConfig = signingConfigs.getByName("debug")',
-            'signingConfig = signingConfigs.getByName("release")',
-        )
         if 'create("release")' not in g:
-            signing_block = (
-                "\nandroid {\n"
-                "    lint {\n"
-                "        checkReleaseBuilds = false\n"
-                "        abortOnError = false\n"
-                "    }\n"
+            signing_cfg = (
                 "    signingConfigs {\n"
                 '        create("release") {\n'
                 '            keyAlias = keystoreProperties.getProperty("keyAlias")\n'
@@ -134,15 +125,26 @@ def main() -> None:
                 '            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }\n'
                 '            storePassword = keystoreProperties.getProperty("storePassword")\n'
                 "        }\n"
-                "    }\n"
-                "    buildTypes {\n"
-                '        getByName("release") {\n'
-                '            signingConfig = signingConfigs.getByName("release")\n'
-                "        }\n"
+                "    }\n\n"
+                "    buildTypes {"
+            )
+            if "buildTypes {" in g:
+                g = g.replace("buildTypes {", signing_cfg, 1)
+            else:
+                g = g + "\nandroid {\n" + signing_cfg.replace("    buildTypes {", "") + "}\n"
+        g = g.replace(
+            'signingConfig = signingConfigs.getByName("debug")',
+            'signingConfig = signingConfigs.getByName("release")',
+        )
+        if "checkReleaseBuilds" not in g:
+            g = g + (
+                "\nandroid {\n"
+                "    lint {\n"
+                "        checkReleaseBuilds = false\n"
+                "        abortOnError = false\n"
                 "    }\n"
                 "}\n"
             )
-            g = g + signing_block
         kts_path.write_text(g)
     elif groovy_path.exists():
         g = groovy_path.read_text()
@@ -155,17 +157,8 @@ def main() -> None:
                 "}\n\n"
             )
             g = header + g
-        g = g.replace(
-            "signingConfig signingConfigs.debug",
-            "signingConfig signingConfigs.release",
-        )
         if "signingConfigs" not in g or "release {" not in g:
-            signing_block = (
-                "\nandroid {\n"
-                "    lintOptions {\n"
-                "        checkReleaseBuilds false\n"
-                "        abortOnError false\n"
-                "    }\n"
+            signing_cfg = (
                 "    signingConfigs {\n"
                 "        release {\n"
                 "            keyAlias keystoreProperties['keyAlias']\n"
@@ -173,15 +166,26 @@ def main() -> None:
                 "            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null\n"
                 "            storePassword keystoreProperties['storePassword']\n"
                 "        }\n"
-                "    }\n"
-                "    buildTypes {\n"
-                "        release {\n"
-                "            signingConfig signingConfigs.release\n"
-                "        }\n"
+                "    }\n\n"
+                "    buildTypes {"
+            )
+            if "buildTypes {" in g:
+                g = g.replace("buildTypes {", signing_cfg, 1)
+            else:
+                g = g + "\nandroid {\n" + signing_cfg.replace("    buildTypes {", "") + "}\n"
+        g = g.replace(
+            "signingConfig signingConfigs.debug",
+            "signingConfig signingConfigs.release",
+        )
+        if "checkReleaseBuilds" not in g:
+            g = g + (
+                "\nandroid {\n"
+                "    lintOptions {\n"
+                "        checkReleaseBuilds false\n"
+                "        abortOnError false\n"
                 "    }\n"
                 "}\n"
             )
-            g = g + signing_block
         groovy_path.write_text(g)
 
 
