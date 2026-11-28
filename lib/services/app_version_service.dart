@@ -45,15 +45,16 @@ class AppVersionService {
       int.fromEnvironment('APP_BUILD_NUMBER', defaultValue: 0);
   static const int compiledWebBuildNumber =
       int.fromEnvironment('WEB_BUILD_NUMBER', defaultValue: 0);
-  static const String githubRepo = String.fromEnvironment('GITHUB_REPO');
+  static const String _envGithubRepo = String.fromEnvironment('GITHUB_REPO');
+  static String get githubRepo =>
+      _envGithubRepo.isNotEmpty ? _envGithubRepo : 'sanjide003/orderdesk';
   static const String fallbackVersionJsonUrl =
-      'https://orderdeskwapp.vercel.app/version.json';
+      'https://github.com/sanjide003/orderdesk/releases/latest/download/version.json';
   static const String fallbackApkUrl =
-      'https://orderdeskwapp.vercel.app/downloads/orderdesk-latest.apk';
+      'https://github.com/sanjide003/orderdesk/releases/latest/download/orderdesk-latest.apk';
 
-  static String get defaultApkUrl => githubRepo.isNotEmpty
-      ? 'https://github.com/$githubRepo/releases/latest/download/orderdesk-latest.apk'
-      : fallbackApkUrl;
+  static String get defaultApkUrl =>
+      'https://github.com/$githubRepo/releases/latest/download/orderdesk-latest.apk';
 
   static Future<InstalledAppVersion> getInstalledVersion() async {
     if (kIsWeb) {
