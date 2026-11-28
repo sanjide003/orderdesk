@@ -90,7 +90,7 @@ class MainActivity : FlutterActivity() {
                                 result.error("FILE_NOT_FOUND", "APK file not found", null)
                                 return@setMethodCallHandler
                             }
-                            val authority = "$packageName.fileprovider"
+                            val authority = "$packageName.orderdesk.fileprovider"
                             val apkUri = FileProvider.getUriForFile(this, authority, apkFile)
                             val intent = Intent(Intent.ACTION_VIEW).apply {
                                 setDataAndType(apkUri, "application/vnd.android.package-archive")

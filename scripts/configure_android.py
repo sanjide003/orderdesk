@@ -89,7 +89,7 @@ def main() -> None:
             provider = (
                 '        <provider\n'
                 '            android:name="androidx.core.content.FileProvider"\n'
-                '            android:authorities="${applicationId}.fileprovider"\n'
+                '            android:authorities="${applicationId}.orderdesk.fileprovider"\n'
                 '            android:exported="false"\n'
                 '            android:grantUriPermissions="true">\n'
                 '            <meta-data\n'
@@ -106,16 +106,23 @@ def main() -> None:
     if kts_path.exists():
         g = kts_path.read_text()
         if "key.properties" not in g:
-            header = (
+            imports = (
                 "import java.util.Properties\n"
                 "import java.io.FileInputStream\n\n"
+            )
+            props_block = (
                 "val keystoreProperties = Properties()\n"
                 'val keystorePropertiesFile = rootProject.file("key.properties")\n'
                 "if (keystorePropertiesFile.exists()) {\n"
                 "    keystoreProperties.load(FileInputStream(keystorePropertiesFile))\n"
                 "}\n\n"
+                "android {"
             )
-            g = header + g
+            g = imports + g
+            if "android {" in g:
+                g = g.replace("android {", props_block, 1)
+            else:
+                g = g + "\n" + props_block.replace("android {", "")
         if 'create("release")' not in g:
             signing_cfg = (
                 "    signingConfigs {\n"
